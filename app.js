@@ -1,6 +1,4 @@
 (function () {
-  const STORAGE_KEY = "spla-x-match-tracker:v1";
-
   const rules = [
     { id: "area", name: "ガチエリア" },
     { id: "tower", name: "ガチヤグラ" },
@@ -96,9 +94,7 @@
     xpRecords: [],
   };
 
-  let state = loadState();
-  let backendAvailable = false;
-  let syncTimer = null;
+  let state = structuredClone(initialState);
   let quickSavePending = false;
   let matchFeedbackTimer = null;
 
@@ -153,9 +149,17 @@
     fillRuleSelects();
     fillDatalists();
     bindEvents();
-    await loadRemoteState();
+    let loadFailed = false;
+    try {
+      await loadRemoteState();
+    } catch (_error) {
+      loadFailed = true;
+    }
     syncSettingsControls();
     render();
+    if (loadFailed) {
+      reportError("バックエンドに接続できません");
+    }
   }
 
   function fillRuleSelects() {
@@ -231,16 +235,26 @@
     }
   }
 
-  function updateSettings() {
-    state.settings = {
-      rule: els.ruleSelect.value,
-      weapon: els.weaponInput.value.trim(),
-      stageA: els.stageAInput.value.trim(),
-      stageB: els.stageBInput.value.trim(),
+  async function updateSettings() {
+    const nextState = {
+      ...state,
+      settings: {
+        rule: els.ruleSelect.value,
+        weapon: els.weaponInput.value.trim(),
+        stageA: els.stageAInput.value.trim(),
+        stageB: els.stageBInput.value.trim(),
+      },
     };
-    persist();
-    renderQuickButtons();
-    renderFilters();
+
+    try {
+      await saveRemoteState(nextState);
+      syncSettingsControls();
+      render();
+    } catch (_error) {
+      syncSettingsControls();
+      render();
+      reportError("設定を保存できません");
+    }
   }
 
   function render() {
@@ -275,7 +289,7 @@
     `;
   }
 
-  function addMatch(stage, result) {
+  async function addMatch(stage, result) {
     if (!state.settings.weapon || !stage) return;
 
     const match = {
@@ -287,11 +301,20 @@
       recordedAt: new Date().toISOString(),
     };
 
-    state.matches.unshift(match);
-    sortRecords();
-    persist();
-    render();
-    showMatchFeedback(match);
+    const nextState = {
+      ...state,
+      matches: [match, ...state.matches],
+    };
+    sortRecords(nextState);
+
+    try {
+      await saveRemoteState(nextState);
+      render();
+      showMatchFeedback(match);
+    } catch (_error) {
+      render();
+      reportError("試合結果を保存できません");
+    }
   }
 
   function handleQuickResultClick(button) {
@@ -306,14 +329,15 @@
     button.classList.add("is-pressed");
 
     window.setTimeout(() => {
-      quickSavePending = false;
-      addMatch(stage, result);
+      addMatch(stage, result).finally(() => {
+        quickSavePending = false;
+      });
     }, 140);
   }
 
   function showMatchFeedback(match) {
     window.clearTimeout(matchFeedbackTimer);
-    els.lastSaved.classList.remove("saved-flash", "win", "lose");
+    els.lastSaved.classList.remove("saved-flash", "status-error", "win", "lose");
     void els.lastSaved.offsetWidth;
     els.lastSaved.textContent = `${match.result === "win" ? "WIN" : "LOSE"} 保存しました`;
     els.lastSaved.classList.add("saved-flash", match.result);
@@ -324,11 +348,20 @@
     }, 1400);
   }
 
-  function undoLastMatch() {
+  async function undoLastMatch() {
     if (state.matches.length === 0) return;
-    state.matches.shift();
-    persist();
-    render();
+    const nextState = {
+      ...state,
+      matches: state.matches.slice(1),
+    };
+
+    try {
+      await saveRemoteState(nextState);
+      render();
+    } catch (_error) {
+      render();
+      reportError("取り消しを保存できません");
+    }
   }
 
   function focusXpInput() {
@@ -336,63 +369,94 @@
     els.xpInput.select();
   }
 
-  function saveXp(event) {
+  async function saveXp(event) {
     event.preventDefault();
     const xp = Number(els.xpInput.value);
     if (!Number.isFinite(xp) || xp < 0) return;
 
-    state.xpRecords.unshift({
+    const record = {
       id: createId(),
       rule: state.settings.rule,
       xp,
       recordedAt: new Date().toISOString(),
-    });
-    sortRecords();
-    els.xpInput.value = "";
-    persist();
-    render();
+    };
+    const nextState = {
+      ...state,
+      xpRecords: [record, ...state.xpRecords],
+    };
+    sortRecords(nextState);
+
+    try {
+      await saveRemoteState(nextState);
+      els.xpInput.value = "";
+      render();
+    } catch (_error) {
+      render();
+      reportError("XPを保存できません");
+    }
   }
 
-  function savePastMatch(event) {
+  async function savePastMatch(event) {
     event.preventDefault();
     const recordedAt = readPastRecordedAt();
     const weapon = els.pastWeaponInput.value.trim();
     const stage = els.pastStageInput.value.trim();
     if (!recordedAt || !weapon || !stage) return;
 
-    state.matches.push({
+    const match = {
       id: createId(),
       rule: els.pastRuleSelect.value,
       stage,
       weapon,
       result: els.pastResultSelect.value,
       recordedAt,
-    });
-    sortRecords();
-    persist();
-    render();
-    adjustPastTime(5);
+    };
+    const nextState = {
+      ...state,
+      matches: [...state.matches, match],
+    };
+    sortRecords(nextState);
+
+    try {
+      await saveRemoteState(nextState);
+      render();
+      adjustPastTime(5);
+    } catch (_error) {
+      render();
+      reportError("過去の試合を保存できません");
+    }
   }
 
-  function savePastXp(event) {
+  async function savePastXp(event) {
     event.preventDefault();
     const recordedAt = readPastRecordedAt();
     const xp = Number(els.pastXpInput.value);
     if (!recordedAt || !Number.isFinite(xp) || xp < 0) return;
 
-    state.xpRecords.push({
+    const record = {
       id: createId(),
       rule: els.pastXpRuleSelect.value,
       xp,
       recordedAt,
-    });
-    sortRecords();
-    els.pastXpInput.value = "";
-    persist();
-    render();
+    };
+    const nextState = {
+      ...state,
+      xpRecords: [...state.xpRecords, record],
+    };
+    sortRecords(nextState);
+
+    try {
+      await saveRemoteState(nextState);
+      els.pastXpInput.value = "";
+      render();
+    } catch (_error) {
+      render();
+      reportError("過去のXPを保存できません");
+    }
   }
 
   function renderStatus() {
+    els.lastSaved.classList.remove("status-error");
     els.matchCount.textContent = `${state.matches.length}戦`;
     const lastMatch = state.matches[0];
     els.lastSaved.textContent = lastMatch ? formatDateTime(lastMatch.recordedAt) : "未記録";
@@ -679,28 +743,18 @@
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.addEventListener("load", () => {
+    reader.addEventListener("load", async () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        state = normalizeState(parsed);
-        persist();
+        await saveRemoteState(normalizeState(parsed));
         syncSettingsControls();
         render();
       } catch (_error) {
-        alert("読み込みに失敗しました");
+        reportError("読み込みに失敗しました");
       }
     });
     reader.readAsText(file);
     event.target.value = "";
-  }
-
-  function loadState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? normalizeState(JSON.parse(raw)) : structuredClone(initialState);
-    } catch (_error) {
-      return structuredClone(initialState);
-    }
   }
 
   function normalizeState(value) {
@@ -714,11 +768,6 @@
     };
     sortRecords(normalized);
     return normalized;
-  }
-
-  function persist() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    scheduleRemoteSync();
   }
 
   function readPastRecordedAt() {
@@ -745,45 +794,28 @@
   }
 
   async function loadRemoteState() {
-    try {
-      const response = await fetch("/api/state");
-      if (!response.ok) return;
-
-      const remotePayload = await response.json();
-      const remoteState = normalizeState(remotePayload);
-      backendAvailable = true;
-
-      if (!remotePayload.settings && remoteState.matches.length === 0 && remoteState.xpRecords.length === 0) {
-        scheduleRemoteSync();
-        return;
-      }
-
-      state = remoteState;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (_error) {
-      backendAvailable = false;
-    }
+    const response = await fetch("/api/state");
+    if (!response.ok) throw new Error("Failed to load state");
+    state = normalizeState(await response.json());
   }
 
-  function scheduleRemoteSync() {
-    if (!backendAvailable) return;
-    window.clearTimeout(syncTimer);
-    syncTimer = window.setTimeout(syncRemoteState, 250);
+  async function saveRemoteState(nextState) {
+    const response = await fetch("/api/state", {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(nextState),
+    });
+    if (!response.ok) throw new Error("Failed to save state");
+    state = normalizeState(await response.json());
   }
 
-  async function syncRemoteState() {
-    try {
-      const response = await fetch("/api/state", {
-        method: "PUT",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(state),
-      });
-      backendAvailable = response.ok;
-    } catch (_error) {
-      backendAvailable = false;
-    }
+  function reportError(message) {
+    window.clearTimeout(matchFeedbackTimer);
+    els.lastSaved.classList.remove("saved-flash", "win", "lose");
+    els.lastSaved.classList.add("status-error");
+    els.lastSaved.textContent = message;
   }
 
   function groupBy(items, getKey) {
