@@ -368,6 +368,12 @@ select:focus {
   font-weight: 800;
 }
 
+.compact-button {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
 .primary-button {
   background: var(--ink);
   color: #fff;
@@ -517,6 +523,12 @@ select:focus {
   align-items: center;
 }
 
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .history-result {
   min-width: 54px;
   border-radius: 999px;
@@ -533,6 +545,32 @@ select:focus {
 .history-result.lose {
   background: var(--pink);
   color: #fff;
+}
+
+.history-edit-row {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcf8;
+}
+
+.history-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.history-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tight-actions {
+  margin-top: 0;
 }
 
 .xp-controls {
@@ -674,7 +712,8 @@ select:focus {
   .xp-controls,
   .xp-legend,
   .metric-grid,
-  .breakdown-grid {
+  .breakdown-grid,
+  .history-edit-grid {
     grid-template-columns: 1fr;
   }
 
@@ -717,6 +756,23 @@ select:focus {
   }
 
   .time-stepper > * {
+    flex: 1;
+  }
+
+  .history-row,
+  .history-edit-actions {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .history-actions,
+  .tight-actions {
+    width: 100%;
+  }
+
+  .history-actions > *,
+  .tight-actions > * {
     flex: 1;
   }
 }

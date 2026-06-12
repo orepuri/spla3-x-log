@@ -97,6 +97,7 @@
   let state = structuredClone(initialState);
   let quickSavePending = false;
   let matchFeedbackTimer = null;
+  let editingMatchId = null;
 
   const els = {
     ruleSelect: document.getElementById("ruleSelect"),
@@ -169,8 +170,14 @@
     els.filterRule.innerHTML = '<option value="all">すべて</option>' + rules.map(optionHtml).join("");
   }
 
-  function optionHtml(rule) {
-    return `<option value="${escapeHtml(rule.id)}">${escapeHtml(rule.name)}</option>`;
+  function optionHtml(rule, selectedValue = "") {
+    return `<option value="${escapeHtml(rule.id)}"${rule.id === selectedValue ? " selected" : ""}>${escapeHtml(rule.name)}</option>`;
+  }
+
+  function stageOptionHtml(selectedValue = "") {
+    return uniqueOrdered([...defaultStages, selectedValue].filter(Boolean))
+      .map((name) => `<option value="${escapeHtml(name)}"${name === selectedValue ? " selected" : ""}>${escapeHtml(name)}</option>`)
+      .join("");
   }
 
   function fillDatalists() {
@@ -586,19 +593,113 @@
     const matches = filteredMatches();
     els.historyList.innerHTML = matches.length
       ? matches
-          .map(
-            (match) => `
+          .map((match) =>
+            match.id === editingMatchId
+              ? editMatchRow(match)
+              : `
               <div class="history-row">
                 <div>
                   <div class="history-main">${escapeHtml(match.stage)} / ${escapeHtml(ruleName(match.rule))}</div>
                   <div class="history-meta">${escapeHtml(match.weapon)} · ${formatDateTime(match.recordedAt)}</div>
                 </div>
-                <div class="history-result ${match.result}">${match.result === "win" ? "WIN" : "LOSE"}</div>
+                <div class="history-actions">
+                  <div class="history-result ${match.result}">${match.result === "win" ? "WIN" : "LOSE"}</div>
+                  <button class="secondary-button compact-button" type="button" data-edit-match="${escapeHtml(match.id)}">編集</button>
+                </div>
               </div>
             `,
           )
           .join("")
       : '<div class="empty">データなし</div>';
+
+    els.historyList.querySelectorAll("[data-edit-match]").forEach((button) => {
+      button.addEventListener("click", () => {
+        editingMatchId = button.dataset.editMatch;
+        renderHistory();
+      });
+    });
+    els.historyList.querySelectorAll("[data-cancel-match-edit]").forEach((button) => {
+      button.addEventListener("click", () => {
+        editingMatchId = null;
+        renderHistory();
+      });
+    });
+    els.historyList.querySelectorAll("[data-edit-match-form]").forEach((form) => {
+      form.addEventListener("submit", saveMatchEdit);
+    });
+  }
+
+  function editMatchRow(match) {
+    return `
+      <form class="history-edit-row" data-edit-match-form="${escapeHtml(match.id)}">
+        <div class="history-edit-grid">
+          <label>
+            ルール
+            <select name="rule">${rules.map((rule) => optionHtml(rule, match.rule)).join("")}</select>
+          </label>
+          <label>
+            武器
+            <input name="weapon" list="weaponList" autocomplete="off" value="${escapeHtml(match.weapon)}" />
+          </label>
+          <label>
+            ステージ
+            <select name="stage">${stageOptionHtml(match.stage)}</select>
+          </label>
+          <label>
+            勝敗
+            <select name="result">
+              <option value="win"${match.result === "win" ? " selected" : ""}>WIN</option>
+              <option value="lose"${match.result === "lose" ? " selected" : ""}>LOSE</option>
+            </select>
+          </label>
+        </div>
+        <div class="history-edit-actions">
+          <span class="history-meta">${formatDateTime(match.recordedAt)}</span>
+          <div class="inline-actions tight-actions">
+            <button class="secondary-button" type="button" data-cancel-match-edit>キャンセル</button>
+            <button class="primary-button" type="submit">保存</button>
+          </div>
+        </div>
+      </form>
+    `;
+  }
+
+  async function saveMatchEdit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const matchId = form.dataset.editMatchForm;
+    const formData = new FormData(form);
+    const stage = String(formData.get("stage") || "").trim();
+    const weapon = String(formData.get("weapon") || "").trim();
+    const rule = String(formData.get("rule") || "");
+    const result = String(formData.get("result") || "");
+    if (!matchId || !stage || !weapon || !rules.some((item) => item.id === rule) || (result !== "win" && result !== "lose")) return;
+
+    const nextState = {
+      ...state,
+      matches: state.matches.map((match) =>
+        match.id === matchId
+          ? {
+              ...match,
+              rule,
+              stage,
+              weapon,
+              result,
+            }
+          : match,
+      ),
+    };
+    sortRecords(nextState);
+
+    try {
+      await saveRemoteState(nextState);
+      editingMatchId = null;
+      syncSettingsControls();
+      render();
+    } catch (_error) {
+      render();
+      reportError("履歴を保存できません");
+    }
   }
 
   function renderXp() {
