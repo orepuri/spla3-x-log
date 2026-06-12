@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Xマッチログ</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Splatoon 3</p>
+          <h1>Xマッチログ</h1>
+        </div>
+        <div class="top-actions">
+          <button class="ghost-button" id="exportButton" type="button">Export</button>
+          <label class="ghost-button import-button">
+            Import
+            <input id="importInput" type="file" accept="application/json" />
+          </label>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="record-pane" aria-label="記録">
+          <div class="panel current-panel">
+            <div class="panel-title-row">
+              <h2>現在設定</h2>
+              <div class="status-pill" id="matchCount">0戦</div>
+            </div>
+
+            <div class="settings-grid">
+              <label>
+                ルール
+                <select id="ruleSelect"></select>
+              </label>
+              <label>
+                武器
+                <input id="weaponInput" list="weaponList" autocomplete="off" />
+                <datalist id="weaponList"></datalist>
+              </label>
+              <label>
+                ステージA
+                <select id="stageAInput"></select>
+              </label>
+              <label>
+                ステージB
+                <select id="stageBInput"></select>
+              </label>
+            </div>
+          </div>
+
+          <div class="panel quick-panel">
+            <div class="panel-title-row">
+              <h2>試合結果</h2>
+              <span class="subtle" id="lastSaved" aria-live="polite">未記録</span>
+            </div>
+            <div class="quick-grid" id="quickButtons"></div>
+            <div class="inline-actions">
+              <button id="undoButton" class="secondary-button" type="button">最後を取り消す</button>
+              <button id="xpToggleButton" class="primary-button" type="button">XP記録</button>
+            </div>
+          </div>
+
+          <div class="panel xp-panel" id="xpPanel">
+            <div class="panel-title-row">
+              <h2>XP</h2>
+              <span class="subtle" id="latestXp">未記録</span>
+            </div>
+            <form class="xp-form" id="xpForm">
+              <label>
+                現在XP
+                <input id="xpInput" type="number" inputmode="decimal" step="0.1" min="0" placeholder="2000.0" />
+              </label>
+              <button class="primary-button" type="submit">保存</button>
+            </form>
+          </div>
+
+          <div class="panel past-panel">
+            <div class="panel-title-row">
+              <h2>過去入力</h2>
+              <div class="segmented compact-segmented" role="tablist">
+                <button class="segment active" data-past-view="match" type="button">試合</button>
+                <button class="segment" data-past-view="xp" type="button">XP</button>
+              </div>
+            </div>
+
+            <div class="datetime-row">
+              <label>
+                日時
+                <input id="pastRecordedAtInput" type="datetime-local" />
+              </label>
+              <div class="time-stepper">
+                <button class="secondary-button" data-time-delta="-5" type="button">-5分</button>
+                <button class="secondary-button" data-time-delta="5" type="button">+5分</button>
+              </div>
+            </div>
+
+            <form class="past-form active" id="pastMatchForm">
+              <div class="settings-grid">
+                <label>
+                  ルール
+                  <select id="pastRuleSelect"></select>
+                </label>
+                <label>
+                  武器
+                  <input id="pastWeaponInput" list="weaponList" autocomplete="off" />
+                </label>
+                <label>
+                  ステージ
+                  <select id="pastStageInput"></select>
+                </label>
+                <label>
+                  勝敗
+                  <select id="pastResultSelect">
+                    <option value="win">WIN</option>
+                    <option value="lose">LOSE</option>
+                  </select>
+                </label>
+              </div>
+              <button class="primary-button full-button" type="submit">試合を保存</button>
+            </form>
+
+            <form class="past-form" id="pastXpForm">
+              <div class="settings-grid">
+                <label>
+                  ルール
+                  <select id="pastXpRuleSelect"></select>
+                </label>
+                <label>
+                  XP
+                  <input id="pastXpInput" type="number" inputmode="decimal" step="0.1" min="0" placeholder="2000.0" />
+                </label>
+              </div>
+              <button class="primary-button full-button" type="submit">XPを保存</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="insight-pane" aria-label="閲覧">
+          <div class="panel">
+            <div class="panel-title-row">
+              <h2>分析</h2>
+              <div class="segmented" role="tablist">
+                <button class="segment active" data-view="summary" type="button">集計</button>
+                <button class="segment" data-view="history" type="button">履歴</button>
+                <button class="segment" data-view="xp" type="button">XP</button>
+              </div>
+            </div>
+
+            <div class="filters">
+              <label>
+                ルール
+                <select id="filterRule"></select>
+              </label>
+              <label>
+                武器
+                <select id="filterWeapon"></select>
+              </label>
+              <label>
+                ステージ
+                <select id="filterStage"></select>
+              </label>
+              <label>
+                時間帯
+                <select id="filterTime">
+                  <option value="all">すべて</option>
+                  <option value="0-6">0-6時</option>
+                  <option value="6-12">6-12時</option>
+                  <option value="12-18">12-18時</option>
+                  <option value="18-24">18-24時</option>
+                </select>
+              </label>
+            </div>
+
+            <div id="summaryView" class="view active">
+              <div class="metric-grid">
+                <div class="metric">
+                  <span>勝率</span>
+                  <strong id="winRate">-</strong>
+                </div>
+                <div class="metric">
+                  <span>勝ち</span>
+                  <strong id="wins">0</strong>
+                </div>
+                <div class="metric">
+                  <span>負け</span>
+                  <strong id="losses">0</strong>
+                </div>
+                <div class="metric">
+                  <span>試合数</span>
+                  <strong id="totalMatches">0</strong>
+                </div>
+              </div>
+              <div class="breakdown-grid">
+                <div>
+                  <h3>ルール別</h3>
+                  <div id="ruleBreakdown" class="breakdown-list"></div>
+                </div>
+                <div>
+                  <h3>ステージ別</h3>
+                  <div id="stageBreakdown" class="breakdown-list"></div>
+                </div>
+                <div>
+                  <h3>武器別</h3>
+                  <div id="weaponBreakdown" class="breakdown-list"></div>
+                </div>
+                <div>
+                  <h3>時間帯別</h3>
+                  <div id="timeBreakdown" class="breakdown-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <div id="historyView" class="view">
+              <div id="historyList" class="history-list"></div>
+            </div>
+
+            <div id="xpView" class="view">
+              <div class="xp-controls">
+                <label>
+                  期間
+                  <select id="xpPeriodSelect">
+                    <option value="30" selected>直近30日</option>
+                    <option value="7">直近7日</option>
+                    <option value="90">直近90日</option>
+                    <option value="all">全期間</option>
+                    <option value="custom">期間指定</option>
+                  </select>
+                </label>
+                <label class="xp-custom-range">
+                  開始
+                  <input id="xpStartInput" type="date" />
+                </label>
+                <label class="xp-custom-range">
+                  終了
+                  <input id="xpEndInput" type="date" />
+                </label>
+              </div>
+              <div id="xpCharts" class="xp-chart-list"></div>
+              <div id="xpList" class="history-list compact"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
