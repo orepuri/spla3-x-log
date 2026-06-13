@@ -519,6 +519,10 @@
 
     toggleXpCustomRange(period === "custom");
 
+    if (period === "custom" && !els.xpEndInput.value) {
+      els.xpEndInput.value = dateInputValue(now);
+    }
+
     if (period === "all" && visibleRecords.length > 0) {
       const times = visibleRecords.map((record) => new Date(record.recordedAt).getTime());
       return {
@@ -985,6 +989,13 @@
   function parseDateInput(value) {
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day);
+  }
+
+  function dateInputValue(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   function dateStamp() {
