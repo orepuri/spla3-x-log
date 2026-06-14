@@ -7,12 +7,22 @@ services:
     environment:
       PORT: ${APP_PORT:-5173}
       HOST: 0.0.0.0
-      DATABASE_URL: postgres://${POSTGRES_USER:-spla}:${POSTGRES_PASSWORD:-spla_password}@db:5432/${POSTGRES_DB:-spla}
+      DATABASE_URL: postgres://${POSTGRES_USER:-spla}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-spla}
     ports:
-      - "${APP_PORT:-5173}:${APP_PORT:-5173}"
+      - "127.0.0.1:${APP_PORT:-5173}:${APP_PORT:-5173}"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:' + (process.env.PORT || 5173) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   db:
     image: postgres:17-alpine
@@ -20,7 +30,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-spla}
       POSTGRES_USER: ${POSTGRES_USER:-spla}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spla_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
