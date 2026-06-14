@@ -131,11 +131,46 @@ curl -fsS http://127.0.0.1:5173/api/health
 
 ## バックアップ
 
-PostgresデータはDocker volumeに保存されるため、VPS上で定期的にバックアップします。
+PostgresデータはDocker volumeに保存されます。手動でdumpを取る場合は次を実行します。
 
 ```sh
 docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > spla_backup.sql
 ```
+
+定期バックアップは `backup` コンテナで実行し、Cloudflare R2へアップロードします。R2でbucket scoped tokenを作成し、`.env` に次を設定します。
+
+```env
+TZ=Asia/Tokyo
+BACKUP_SCHEDULE="0 6 * * *"
+BACKUP_NAME_PREFIX=spla3-x-log
+R2_BUCKET=splaxlog
+R2_PREFIX=backups
+R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=<access_key_id>
+R2_SECRET_ACCESS_KEY=<secret_access_key>
+```
+
+`R2_ACCESS_KEY_ID` と `R2_SECRET_ACCESS_KEY` には、Cloudflare R2のS3互換API用のAccess Key IDとSecret Access Keyを設定します。`BACKUP_SCHEDULE` は `TZ` のタイムゾーンで解釈されます。上の例では毎日06:00に実行します。
+
+バックアップコンテナ込みで起動します。
+
+```sh
+docker compose --profile backup up -d --build
+```
+
+スケジューラとバックアップ結果を確認します。
+
+```sh
+docker compose logs backup
+```
+
+すぐに1回バックアップしたい場合は、起動中の `backup` コンテナ内で実行します。
+
+```sh
+docker compose exec backup backup-postgres-to-r2.sh
+```
+
+R2側ではLifecycle ruleを設定し、`backups/` 配下を30日または90日で削除するようにします。
 
 リストアする場合は、アプリを止めてからDBへ流し込みます。
 
