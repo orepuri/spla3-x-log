@@ -21,7 +21,7 @@ require_env RCLONE_CONFIG_R2_ENDPOINT
 
 R2_PREFIX="${R2_PREFIX:-postgres}"
 BACKUP_NAME_PREFIX="${BACKUP_NAME_PREFIX:-spla3-x-log}"
-STAMP="$(date -u +%Y%m%d-%H%M%S)"
+STAMP="$(date +%Y%m%d-%H%M%S)"
 FILE="${BACKUP_NAME_PREFIX}-${STAMP}.sql.gz"
 TMP_DIR="$(mktemp -d)"
 TMP_FILE="${TMP_DIR}/${FILE}"

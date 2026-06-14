@@ -150,7 +150,7 @@ R2_ACCESS_KEY_ID=<access_key_id>
 R2_SECRET_ACCESS_KEY=<secret_access_key>
 ```
 
-`R2_ACCESS_KEY_ID` と `R2_SECRET_ACCESS_KEY` には、Cloudflare R2のS3互換API用のAccess Key IDとSecret Access Keyを設定します。`BACKUP_SCHEDULE` は `TZ` のタイムゾーンで解釈されます。上の例では毎日06:00に実行します。
+`TZ` はアプリ、DB、バックアップコンテナに適用されます。`R2_ACCESS_KEY_ID` と `R2_SECRET_ACCESS_KEY` には、Cloudflare R2のS3互換API用のAccess Key IDとSecret Access Keyを設定します。`BACKUP_SCHEDULE` とバックアップファイル名の日時は `TZ` のタイムゾーンで解釈されます。上の例では日本時間の毎日06:00に実行します。
 
 バックアップコンテナ込みで起動します。
 

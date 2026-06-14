@@ -5,6 +5,7 @@ services:
     build: .
     restart: unless-stopped
     environment:
+      TZ: ${TZ:-Asia/Tokyo}
       PORT: ${APP_PORT:-5173}
       HOST: 0.0.0.0
       DATABASE_URL: postgres://${POSTGRES_USER:-spla}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-spla}
@@ -28,6 +29,7 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
+      TZ: ${TZ:-Asia/Tokyo}
       POSTGRES_DB: ${POSTGRES_DB:-spla}
       POSTGRES_USER: ${POSTGRES_USER:-spla}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
