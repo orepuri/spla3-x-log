@@ -41,6 +41,10 @@
                 <datalist id="weaponList"></datalist>
               </label>
               <label>
+                シーズン
+                <select id="seasonSelect"></select>
+              </label>
+              <label>
                 ステージA
                 <select id="stageAInput"></select>
               </label>
@@ -108,6 +112,10 @@
                   <input id="pastWeaponInput" list="weaponList" autocomplete="off" />
                 </label>
                 <label>
+                  シーズン
+                  <select id="pastSeasonSelect"></select>
+                </label>
+                <label>
                   ステージ
                   <select id="pastStageInput"></select>
                 </label>
@@ -127,6 +135,10 @@
                 <label>
                   ルール
                   <select id="pastXpRuleSelect"></select>
+                </label>
+                <label>
+                  シーズン
+                  <select id="pastXpSeasonSelect"></select>
                 </label>
                 <label>
                   XP
@@ -150,6 +162,10 @@
             </div>
 
             <div class="filters">
+              <label>
+                シーズン
+                <select id="filterSeason"></select>
+              </label>
               <label>
                 ルール
                 <select id="filterRule"></select>
@@ -194,6 +210,10 @@
                 </div>
               </div>
               <div class="breakdown-grid">
+                <div>
+                  <h3>シーズン別</h3>
+                  <div id="seasonBreakdown" class="breakdown-list"></div>
+                </div>
                 <div>
                   <h3>ルール別</h3>
                   <div id="ruleBreakdown" class="breakdown-list"></div>

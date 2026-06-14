@@ -6,6 +6,9 @@
     { id: "clam", name: "ガチアサリ" },
   ];
 
+  const defaultSeasonId = "2026-summer";
+  const seasons = [{ id: defaultSeasonId, name: "2026夏 Sizzle Season" }];
+
   const defaultStages = [
     "ユノハナ大渓谷",
     "ゴンズイ地区",
@@ -87,6 +90,7 @@
     settings: {
       rule: "area",
       weapon: "スプラシューター",
+      season: defaultSeasonId,
       stageA: "ユノハナ大渓谷",
       stageB: "マサバ海峡大橋",
     },
@@ -101,6 +105,7 @@
 
   const els = {
     ruleSelect: document.getElementById("ruleSelect"),
+    seasonSelect: document.getElementById("seasonSelect"),
     weaponInput: document.getElementById("weaponInput"),
     stageAInput: document.getElementById("stageAInput"),
     stageBInput: document.getElementById("stageBInput"),
@@ -114,14 +119,17 @@
     pastMatchForm: document.getElementById("pastMatchForm"),
     pastXpForm: document.getElementById("pastXpForm"),
     pastRuleSelect: document.getElementById("pastRuleSelect"),
+    pastSeasonSelect: document.getElementById("pastSeasonSelect"),
     pastWeaponInput: document.getElementById("pastWeaponInput"),
     pastStageInput: document.getElementById("pastStageInput"),
     pastResultSelect: document.getElementById("pastResultSelect"),
     pastXpRuleSelect: document.getElementById("pastXpRuleSelect"),
+    pastXpSeasonSelect: document.getElementById("pastXpSeasonSelect"),
     pastXpInput: document.getElementById("pastXpInput"),
     latestXp: document.getElementById("latestXp"),
     lastSaved: document.getElementById("lastSaved"),
     matchCount: document.getElementById("matchCount"),
+    filterSeason: document.getElementById("filterSeason"),
     filterRule: document.getElementById("filterRule"),
     filterWeapon: document.getElementById("filterWeapon"),
     filterStage: document.getElementById("filterStage"),
@@ -130,6 +138,7 @@
     wins: document.getElementById("wins"),
     losses: document.getElementById("losses"),
     totalMatches: document.getElementById("totalMatches"),
+    seasonBreakdown: document.getElementById("seasonBreakdown"),
     ruleBreakdown: document.getElementById("ruleBreakdown"),
     stageBreakdown: document.getElementById("stageBreakdown"),
     weaponBreakdown: document.getElementById("weaponBreakdown"),
@@ -168,10 +177,18 @@
     els.pastRuleSelect.innerHTML = rules.map(optionHtml).join("");
     els.pastXpRuleSelect.innerHTML = rules.map(optionHtml).join("");
     els.filterRule.innerHTML = '<option value="all">すべて</option>' + rules.map(optionHtml).join("");
+    els.seasonSelect.innerHTML = seasons.map(seasonOptionHtml).join("");
+    els.pastSeasonSelect.innerHTML = seasons.map(seasonOptionHtml).join("");
+    els.pastXpSeasonSelect.innerHTML = seasons.map(seasonOptionHtml).join("");
+    els.filterSeason.innerHTML = '<option value="all">すべて</option>' + seasons.map(seasonOptionHtml).join("");
   }
 
   function optionHtml(rule, selectedValue = "") {
     return `<option value="${escapeHtml(rule.id)}"${rule.id === selectedValue ? " selected" : ""}>${escapeHtml(rule.name)}</option>`;
+  }
+
+  function seasonOptionHtml(season, selectedValue = "") {
+    return `<option value="${escapeHtml(season.id)}"${season.id === selectedValue ? " selected" : ""}>${escapeHtml(season.name)}</option>`;
   }
 
   function stageOptionHtml(selectedValue = "") {
@@ -196,6 +213,7 @@
 
   function bindEvents() {
     els.ruleSelect.addEventListener("change", updateSettings);
+    els.seasonSelect.addEventListener("change", updateSettings);
     els.weaponInput.addEventListener("change", updateSettings);
     els.stageAInput.addEventListener("change", updateSettings);
     els.stageBInput.addEventListener("change", updateSettings);
@@ -204,6 +222,7 @@
     els.xpForm.addEventListener("submit", saveXp);
     els.pastMatchForm.addEventListener("submit", savePastMatch);
     els.pastXpForm.addEventListener("submit", savePastXp);
+    els.filterSeason.addEventListener("change", render);
     els.filterRule.addEventListener("change", render);
     els.filterWeapon.addEventListener("change", render);
     els.filterStage.addEventListener("change", render);
@@ -230,11 +249,14 @@
   function syncSettingsControls() {
     fillStageSelects();
     els.ruleSelect.value = state.settings.rule;
+    els.seasonSelect.value = state.settings.season;
     els.weaponInput.value = state.settings.weapon;
     els.stageAInput.value = state.settings.stageA;
     els.stageBInput.value = state.settings.stageB;
     els.pastRuleSelect.value = state.settings.rule;
+    els.pastSeasonSelect.value = state.settings.season;
     els.pastXpRuleSelect.value = state.settings.rule;
+    els.pastXpSeasonSelect.value = state.settings.season;
     els.pastWeaponInput.value = state.settings.weapon;
     els.pastStageInput.value = state.settings.stageA;
     if (!els.pastRecordedAtInput.value) {
@@ -247,6 +269,7 @@
       ...state,
       settings: {
         rule: els.ruleSelect.value,
+        season: els.seasonSelect.value,
         weapon: els.weaponInput.value.trim(),
         stageA: els.stageAInput.value.trim(),
         stageB: els.stageBInput.value.trim(),
@@ -301,6 +324,7 @@
 
     const match = {
       id: createId(),
+      season: state.settings.season,
       rule: state.settings.rule,
       stage,
       weapon: state.settings.weapon,
@@ -383,6 +407,7 @@
 
     const record = {
       id: createId(),
+      season: state.settings.season,
       rule: state.settings.rule,
       xp,
       recordedAt: new Date().toISOString(),
@@ -412,6 +437,7 @@
 
     const match = {
       id: createId(),
+      season: els.pastSeasonSelect.value,
       rule: els.pastRuleSelect.value,
       stage,
       weapon,
@@ -442,6 +468,7 @@
 
     const record = {
       id: createId(),
+      season: els.pastXpSeasonSelect.value,
       rule: els.pastXpRuleSelect.value,
       xp,
       recordedAt,
@@ -467,17 +494,22 @@
     els.matchCount.textContent = `${state.matches.length}戦`;
     const lastMatch = state.matches[0];
     els.lastSaved.textContent = lastMatch ? formatDateTime(lastMatch.recordedAt) : "未記録";
-    const latestForRule = state.xpRecords.find((record) => record.rule === state.settings.rule);
+    const latestForRule = state.xpRecords.find((record) => record.season === state.settings.season && record.rule === state.settings.rule);
     els.latestXp.textContent = latestForRule ? `${latestForRule.xp.toFixed(1)} / ${ruleName(latestForRule.rule)}` : "未記録";
   }
 
   function renderFilters() {
+    const currentSeason = els.filterSeason.value || "all";
     const currentWeapon = els.filterWeapon.value || "all";
     const currentStage = els.filterStage.value || "all";
     const weapons = unique([...state.matches.map((m) => m.weapon), state.settings.weapon].filter(Boolean));
     const stages = unique([...state.matches.map((m) => m.stage), state.settings.stageA, state.settings.stageB].filter(Boolean));
+    const seasonIds = uniqueOrdered([...seasons.map((season) => season.id), ...state.matches.map((m) => m.season), ...state.xpRecords.map((record) => record.season)].filter(Boolean));
+    els.filterSeason.innerHTML =
+      '<option value="all">すべて</option>' + seasonIds.map((seasonId) => `<option value="${escapeHtml(seasonId)}">${escapeHtml(seasonName(seasonId))}</option>`).join("");
     els.filterWeapon.innerHTML = makeSelectOptions(weapons);
     els.filterStage.innerHTML = makeSelectOptions(stages);
+    els.filterSeason.value = hasOption(els.filterSeason, currentSeason) ? currentSeason : "all";
     els.filterWeapon.value = hasOption(els.filterWeapon, currentWeapon) ? currentWeapon : "all";
     els.filterStage.value = hasOption(els.filterStage, currentStage) ? currentStage : "all";
   }
@@ -492,6 +524,7 @@
 
   function filteredMatches() {
     return state.matches.filter((match) => {
+      if (els.filterSeason.value !== "all" && match.season !== els.filterSeason.value) return false;
       if (els.filterRule.value !== "all" && match.rule !== els.filterRule.value) return false;
       if (els.filterWeapon.value !== "all" && match.weapon !== els.filterWeapon.value) return false;
       if (els.filterStage.value !== "all" && match.stage !== els.filterStage.value) return false;
@@ -512,8 +545,12 @@
   }
 
   function xpDateRange() {
+    const selectedSeason = els.filterSeason.value;
     const selectedRule = els.filterRule.value;
-    const visibleRecords = state.xpRecords.filter((record) => selectedRule === "all" || record.rule === selectedRule);
+    const visibleRecords = state.xpRecords.filter((record) => {
+      if (selectedSeason !== "all" && record.season !== selectedSeason) return false;
+      return selectedRule === "all" || record.rule === selectedRule;
+    });
     const now = new Date();
     const period = els.xpPeriodSelect.value;
 
@@ -561,6 +598,7 @@
     els.losses.textContent = String(losses);
     els.totalMatches.textContent = String(matches.length);
 
+    renderBreakdown(els.seasonBreakdown, groupBy(matches, (m) => seasonName(m.season)));
     renderBreakdown(els.ruleBreakdown, groupBy(matches, (m) => ruleName(m.rule)));
     renderBreakdown(els.stageBreakdown, groupBy(matches, (m) => m.stage));
     renderBreakdown(els.weaponBreakdown, groupBy(matches, (m) => m.weapon));
@@ -604,7 +642,7 @@
               <div class="history-row">
                 <div>
                   <div class="history-main">${escapeHtml(match.stage)} / ${escapeHtml(ruleName(match.rule))}</div>
-                  <div class="history-meta">${escapeHtml(match.weapon)} · ${formatDateTime(match.recordedAt)}</div>
+                  <div class="history-meta">${escapeHtml(match.weapon)} · ${escapeHtml(seasonName(match.season))} · ${formatDateTime(match.recordedAt)}</div>
                 </div>
                 <div class="history-actions">
                   <div class="history-result ${match.result}">${match.result === "win" ? "WIN" : "LOSE"}</div>
@@ -646,6 +684,10 @@
             <input name="weapon" list="weaponList" autocomplete="off" value="${escapeHtml(match.weapon)}" />
           </label>
           <label>
+            シーズン
+            <select name="season">${seasons.map((season) => seasonOptionHtml(season, match.season)).join("")}</select>
+          </label>
+          <label>
             ステージ
             <select name="stage">${stageOptionHtml(match.stage)}</select>
           </label>
@@ -675,9 +717,10 @@
     const formData = new FormData(form);
     const stage = String(formData.get("stage") || "").trim();
     const weapon = String(formData.get("weapon") || "").trim();
+    const season = String(formData.get("season") || defaultSeasonId);
     const rule = String(formData.get("rule") || "");
     const result = String(formData.get("result") || "");
-    if (!matchId || !stage || !weapon || !rules.some((item) => item.id === rule) || (result !== "win" && result !== "lose")) return;
+    if (!matchId || !stage || !weapon || !seasons.some((item) => item.id === season) || !rules.some((item) => item.id === rule) || (result !== "win" && result !== "lose")) return;
 
     const nextState = {
       ...state,
@@ -685,6 +728,7 @@
         match.id === matchId
           ? {
               ...match,
+              season,
               rule,
               stage,
               weapon,
@@ -707,10 +751,12 @@
   }
 
   function renderXp() {
+    const selectedSeason = els.filterSeason.value;
     const selectedRule = els.filterRule.value;
     const visibleRules = selectedRule === "all" ? rules : rules.filter((rule) => rule.id === selectedRule);
     const range = xpDateRange();
     const records = state.xpRecords.filter((record) => {
+      if (selectedSeason !== "all" && record.season !== selectedSeason) return false;
       if (!visibleRules.some((rule) => rule.id === record.rule)) return false;
       return inDateRange(record.recordedAt, range);
     });
@@ -721,7 +767,7 @@
               <div class="history-row">
                 <div>
                   <div class="history-main">${record.xp.toFixed(1)}</div>
-                  <div class="history-meta">${escapeHtml(ruleName(record.rule))} · ${formatDateTime(record.recordedAt)}</div>
+                  <div class="history-meta">${escapeHtml(ruleName(record.rule))} · ${escapeHtml(seasonName(record.season))} · ${formatDateTime(record.recordedAt)}</div>
                 </div>
               </div>
             `,
@@ -868,11 +914,47 @@
         ...initialState.settings,
         ...(value && value.settings ? value.settings : {}),
       },
-      matches: Array.isArray(value && value.matches) ? value.matches : [],
-      xpRecords: Array.isArray(value && value.xpRecords) ? value.xpRecords : [],
+      matches: Array.isArray(value && value.matches) ? value.matches.map(normalizeMatch).filter(Boolean) : [],
+      xpRecords: Array.isArray(value && value.xpRecords) ? value.xpRecords.map(normalizeXpRecord).filter(Boolean) : [],
     };
+    if (!seasons.some((season) => season.id === normalized.settings.season)) {
+      normalized.settings.season = defaultSeasonId;
+    }
     sortRecords(normalized);
     return normalized;
+  }
+
+  function normalizeMatch(match) {
+    if (!match || !match.id || !match.rule || !match.stage || !match.weapon) return null;
+    if (match.result !== "win" && match.result !== "lose") return null;
+    return {
+      ...match,
+      id: String(match.id),
+      season: String(match.season || defaultSeasonId),
+      rule: String(match.rule),
+      stage: String(match.stage),
+      weapon: String(match.weapon),
+      result: match.result,
+      recordedAt: validDate(match.recordedAt),
+    };
+  }
+
+  function normalizeXpRecord(record) {
+    const xp = Number(record && record.xp);
+    if (!record || !record.id || !record.rule || !Number.isFinite(xp) || xp < 0) return null;
+    return {
+      ...record,
+      id: String(record.id),
+      season: String(record.season || defaultSeasonId),
+      rule: String(record.rule),
+      xp,
+      recordedAt: validDate(record.recordedAt),
+    };
+  }
+
+  function validDate(value) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
   }
 
   function readPastRecordedAt() {
@@ -942,6 +1024,10 @@
 
   function ruleName(id) {
     return rules.find((rule) => rule.id === id)?.name || id;
+  }
+
+  function seasonName(id) {
+    return seasons.find((season) => season.id === id)?.name || id || seasonName(defaultSeasonId);
   }
 
   function ruleColor(id) {

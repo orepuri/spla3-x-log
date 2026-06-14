@@ -7,6 +7,7 @@ const root = __dirname;
 const port = Number(process.env.PORT || 5173);
 const host = process.env.HOST || "0.0.0.0";
 const databaseUrl = process.env.DATABASE_URL;
+const defaultSeasonId = "2026-summer";
 
 const pool = databaseUrl
   ? new Pool({
@@ -92,6 +93,7 @@ async function migrate() {
 
     CREATE TABLE IF NOT EXISTS matches (
       id text PRIMARY KEY,
+      season text,
       rule text NOT NULL,
       stage text NOT NULL,
       weapon text NOT NULL,
@@ -99,19 +101,27 @@ async function migrate() {
       recorded_at timestamptz NOT NULL
     );
 
-    CREATE INDEX IF NOT EXISTS matches_recorded_at_idx ON matches (recorded_at DESC);
-    CREATE INDEX IF NOT EXISTS matches_rule_idx ON matches (rule);
-    CREATE INDEX IF NOT EXISTS matches_stage_idx ON matches (stage);
-    CREATE INDEX IF NOT EXISTS matches_weapon_idx ON matches (weapon);
-
     CREATE TABLE IF NOT EXISTS xp_records (
       id text PRIMARY KEY,
+      season text,
       rule text NOT NULL,
       xp numeric(6, 1) NOT NULL CHECK (xp >= 0),
       recorded_at timestamptz NOT NULL
     );
 
+    ALTER TABLE matches ADD COLUMN IF NOT EXISTS season text;
+    ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS season text;
+    UPDATE matches SET season = '${defaultSeasonId}' WHERE season IS NULL;
+    UPDATE xp_records SET season = '${defaultSeasonId}' WHERE season IS NULL;
+
+    CREATE INDEX IF NOT EXISTS matches_recorded_at_idx ON matches (recorded_at DESC);
+    CREATE INDEX IF NOT EXISTS matches_season_idx ON matches (season);
+    CREATE INDEX IF NOT EXISTS matches_rule_idx ON matches (rule);
+    CREATE INDEX IF NOT EXISTS matches_stage_idx ON matches (stage);
+    CREATE INDEX IF NOT EXISTS matches_weapon_idx ON matches (weapon);
+
     CREATE INDEX IF NOT EXISTS xp_records_recorded_at_idx ON xp_records (recorded_at DESC);
+    CREATE INDEX IF NOT EXISTS xp_records_season_idx ON xp_records (season);
     CREATE INDEX IF NOT EXISTS xp_records_rule_idx ON xp_records (rule);
   `);
 }
@@ -119,14 +129,15 @@ async function migrate() {
 async function readState() {
   const [settingsResult, matchesResult, xpResult] = await Promise.all([
     pool.query("SELECT settings FROM app_settings WHERE id = 1"),
-    pool.query("SELECT id, rule, stage, weapon, result, recorded_at FROM matches ORDER BY recorded_at DESC"),
-    pool.query("SELECT id, rule, xp, recorded_at FROM xp_records ORDER BY recorded_at DESC"),
+    pool.query("SELECT id, season, rule, stage, weapon, result, recorded_at FROM matches ORDER BY recorded_at DESC"),
+    pool.query("SELECT id, season, rule, xp, recorded_at FROM xp_records ORDER BY recorded_at DESC"),
   ]);
 
   return {
     settings: settingsResult.rows[0]?.settings || null,
     matches: matchesResult.rows.map((row) => ({
       id: row.id,
+      season: row.season || defaultSeasonId,
       rule: row.rule,
       stage: row.stage,
       weapon: row.weapon,
@@ -135,6 +146,7 @@ async function readState() {
     })),
     xpRecords: xpResult.rows.map((row) => ({
       id: row.id,
+      season: row.season || defaultSeasonId,
       rule: row.rule,
       xp: Number(row.xp),
       recordedAt: row.recorded_at.toISOString(),
@@ -164,20 +176,20 @@ async function writeState(state) {
     for (const match of normalized.matches) {
       await client.query(
         `
-          INSERT INTO matches (id, rule, stage, weapon, result, recorded_at)
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO matches (id, season, rule, stage, weapon, result, recorded_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
         `,
-        [match.id, match.rule, match.stage, match.weapon, match.result, match.recordedAt],
+        [match.id, match.season, match.rule, match.stage, match.weapon, match.result, match.recordedAt],
       );
     }
 
     for (const record of normalized.xpRecords) {
       await client.query(
         `
-          INSERT INTO xp_records (id, rule, xp, recorded_at)
-          VALUES ($1, $2, $3, $4)
+          INSERT INTO xp_records (id, season, rule, xp, recorded_at)
+          VALUES ($1, $2, $3, $4, $5)
         `,
-        [record.id, record.rule, record.xp, record.recordedAt],
+        [record.id, record.season, record.rule, record.xp, record.recordedAt],
       );
     }
 
@@ -204,6 +216,7 @@ function normalizeMatch(match) {
 
   return {
     id: String(match.id),
+    season: String(match.season || defaultSeasonId),
     rule: String(match.rule),
     stage: String(match.stage),
     weapon: String(match.weapon),
@@ -218,6 +231,7 @@ function normalizeXpRecord(record) {
 
   return {
     id: String(record.id),
+    season: String(record.season || defaultSeasonId),
     rule: String(record.rule),
     xp,
     recordedAt: validDate(record.recordedAt),
