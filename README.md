@@ -11,7 +11,7 @@ npm run start
 
 ブラウザで `http://127.0.0.1:5173` を開きます。
 
-`DATABASE_URL` がない場合はブラウザの `localStorage` に保存します。
+データを保存するには `DATABASE_URL` でPostgres接続先を指定します。Postgres込みで動かす場合はDocker Composeを使います。
 
 ## Docker Compose
 
