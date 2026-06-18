@@ -26,6 +26,21 @@ npm run start
 npm run dev:web
 ```
 
+React版では、旧`/api/state`と同じデータを個別APIから操作できます。
+
+- `GET /api/settings`
+- `PUT /api/settings`
+- `GET /api/matches`
+- `POST /api/matches`
+- `PATCH /api/matches/:id`
+- `DELETE /api/matches/:id`
+- `GET /api/xp-records`
+- `POST /api/xp-records`
+- `GET /api/analysis/current`
+- `GET /api/analysis/summary`
+
+`GET /api/matches`と`GET /api/xp-records`は`limit`と`cursor`によるカーソルページングに対応します。
+
 ## テスト
 
 集計ロジックとAPIの単体テストを実行します。
