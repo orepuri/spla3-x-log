@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { handleRequest, normalizeState } = require("../server");
+const { handleRequest, isReactAppPath, normalizeState } = require("../server");
 
 test("health endpoint returns JSON with database status", async () => {
   const response = createResponse();
@@ -54,6 +54,15 @@ test("normalizeState preserves valid Japanese stage and weapon names", () => {
 
   assert.equal(normalized.matches[0].stage, "デカライン高架下");
   assert.equal(normalized.matches[0].weapon, "スプラシューター");
+});
+
+test("React application routes are distinct from the legacy root", () => {
+  assert.equal(isReactAppPath("/"), false);
+  assert.equal(isReactAppPath("/record"), true);
+  assert.equal(isReactAppPath("/backfill"), true);
+  assert.equal(isReactAppPath("/analysis"), true);
+  assert.equal(isReactAppPath("/analysis/history"), true);
+  assert.equal(isReactAppPath("/assets/index.js"), true);
 });
 
 function createResponse() {

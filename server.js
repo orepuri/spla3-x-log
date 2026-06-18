@@ -4,6 +4,7 @@ const path = require("node:path");
 const { Pool } = require("pg");
 
 const root = __dirname;
+const reactRoot = path.join(root, "dist");
 const port = Number(process.env.PORT || 5173);
 const host = process.env.HOST || "0.0.0.0";
 const databaseUrl = process.env.DATABASE_URL;
@@ -20,6 +21,7 @@ const types = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
 };
 
 if (require.main === module) {
@@ -78,6 +80,11 @@ async function handleRequest(req, res) {
 
   if (req.method !== "GET" && req.method !== "HEAD") {
     sendJson(res, 404, { error: "Not found" });
+    return;
+  }
+
+  if (isReactAppPath(url.pathname)) {
+    serveReactApp(req, res, url);
     return;
   }
 
@@ -278,7 +285,18 @@ function serveStatic(req, res, url) {
   const safePath = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
   const requested = path.join(root, safePath === "/" ? "index.html" : safePath);
   const filePath = requested.startsWith(root) ? requested : path.join(root, "index.html");
+  serveFile(req, res, filePath);
+}
 
+function serveReactApp(req, res, url) {
+  const isAsset = url.pathname.startsWith("/assets/");
+  const safePath = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
+  const requested = path.join(reactRoot, safePath);
+  const filePath = isAsset && requested.startsWith(reactRoot) ? requested : path.join(reactRoot, "index.html");
+  serveFile(req, res, filePath);
+}
+
+function serveFile(req, res, filePath) {
   fs.readFile(filePath, (error, data) => {
     if (error) {
       res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
@@ -295,6 +313,16 @@ function serveStatic(req, res, url) {
   });
 }
 
+function isReactAppPath(pathname) {
+  return (
+    pathname.startsWith("/assets/") ||
+    pathname === "/record" ||
+    pathname === "/backfill" ||
+    pathname === "/analysis" ||
+    pathname.startsWith("/analysis/")
+  );
+}
+
 function sendJson(res, status, payload) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
@@ -302,6 +330,7 @@ function sendJson(res, status, payload) {
 
 module.exports = {
   handleRequest,
+  isReactAppPath,
   normalizeState,
   readJsonBody,
 };

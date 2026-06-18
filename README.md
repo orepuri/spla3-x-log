@@ -13,6 +13,19 @@ npm run start
 
 データを保存するには `DATABASE_URL` でPostgres接続先を指定します。Postgres込みで動かす場合はDocker Composeを使います。
 
+React版の画面は次のURLで確認できます。
+
+- `http://127.0.0.1:5173/record`
+- `http://127.0.0.1:5173/backfill`
+- `http://127.0.0.1:5173/analysis/summary`
+
+フロントエンドだけをViteの開発サーバーで起動する場合は、別ターミナルでNodeサーバーとViteを起動します。
+
+```sh
+npm run start
+npm run dev:web
+```
+
 ## テスト
 
 集計ロジックとAPIの単体テストを実行します。
