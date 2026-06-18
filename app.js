@@ -1,4 +1,5 @@
 (function () {
+  const domain = window.SplaDomain;
   const rules = [
     { id: "area", name: "ガチエリア" },
     { id: "tower", name: "ガチヤグラ" },
@@ -495,7 +496,7 @@
     els.matchCount.textContent = `${state.matches.length}戦`;
     const lastMatch = state.matches[0];
     els.lastSaved.textContent = lastMatch ? formatDateTime(lastMatch.recordedAt) : "未記録";
-    const latestForRule = state.xpRecords.find((record) => record.season === state.settings.season && record.rule === state.settings.rule);
+    const latestForRule = domain.latestXpRecord(state.xpRecords, state.settings.season, state.settings.rule);
     els.latestXp.textContent = latestForRule ? `${latestForRule.xp.toFixed(1)} / ${ruleName(latestForRule.rule)}` : "未記録";
   }
 
@@ -524,34 +525,20 @@
   }
 
   function filteredMatches() {
-    return state.matches.filter((match) => {
-      if (els.filterSeason.value !== "all" && match.season !== els.filterSeason.value) return false;
-      if (els.filterRule.value !== "all" && match.rule !== els.filterRule.value) return false;
-      if (els.filterWeapon.value !== "all" && match.weapon !== els.filterWeapon.value) return false;
-      if (els.filterStage.value !== "all" && match.stage !== els.filterStage.value) return false;
-      return inTimeRange(match.recordedAt, els.filterTime.value);
+    return domain.filterMatches(state.matches, {
+      season: els.filterSeason.value,
+      rule: els.filterRule.value,
+      weapon: els.filterWeapon.value,
+      stage: els.filterStage.value,
+      time: els.filterTime.value,
     });
-  }
-
-  function inTimeRange(iso, range) {
-    if (range === "all") return true;
-    const hour = new Date(iso).getHours();
-    const parts = range.split("-").map(Number);
-    return hour >= parts[0] && hour < parts[1];
   }
 
   function inDateRange(iso, range) {
-    const time = new Date(iso).getTime();
-    return time >= range.start.getTime() && time <= range.end.getTime();
+    return domain.inDateRange(iso, range);
   }
 
   function xpDateRange() {
-    const selectedSeason = els.filterSeason.value;
-    const selectedRule = els.filterRule.value;
-    const visibleRecords = state.xpRecords.filter((record) => {
-      if (selectedSeason !== "all" && record.season !== selectedSeason) return false;
-      return selectedRule === "all" || record.rule === selectedRule;
-    });
     const now = new Date();
     const period = els.xpPeriodSelect.value;
 
@@ -561,27 +548,15 @@
       els.xpEndInput.value = dateInputValue(now);
     }
 
-    if (period === "all" && visibleRecords.length > 0) {
-      const times = visibleRecords.map((record) => new Date(record.recordedAt).getTime());
-      return {
-        start: startOfDay(new Date(Math.min(...times))),
-        end: endOfDay(new Date(Math.max(...times))),
-      };
-    }
-
-    if (period === "custom" && els.xpStartInput.value && els.xpEndInput.value) {
-      const start = startOfDay(parseDateInput(els.xpStartInput.value));
-      const end = endOfDay(parseDateInput(els.xpEndInput.value));
-      return start <= end ? { start, end } : { start: startOfDay(end), end: endOfDay(start) };
-    }
-
-    const days = Number(period);
-    const start = new Date(now);
-    start.setDate(start.getDate() - (Number.isFinite(days) ? days : 30));
-    return {
-      start,
-      end: now,
-    };
+    return domain.xpDateRange({
+      records: state.xpRecords,
+      season: els.filterSeason.value,
+      rule: els.filterRule.value,
+      period,
+      customStart: els.xpStartInput.value,
+      customEnd: els.xpEndInput.value,
+      now,
+    });
   }
 
   function toggleXpCustomRange(visible) {
@@ -592,28 +567,21 @@
 
   function renderSummary() {
     const matches = filteredMatches();
-    const wins = matches.filter((m) => m.result === "win").length;
-    const losses = matches.length - wins;
-    els.winRate.textContent = matches.length ? `${Math.round((wins / matches.length) * 100)}%` : "-";
-    els.wins.textContent = String(wins);
-    els.losses.textContent = String(losses);
-    els.totalMatches.textContent = String(matches.length);
+    const summary = domain.summarizeMatches(matches);
+    els.winRate.textContent = summary.winRate === null ? "-" : `${summary.winRate}%`;
+    els.wins.textContent = String(summary.wins);
+    els.losses.textContent = String(summary.losses);
+    els.totalMatches.textContent = String(summary.total);
 
-    renderBreakdown(els.seasonBreakdown, groupBy(matches, (m) => seasonName(m.season)));
-    renderBreakdown(els.ruleBreakdown, groupBy(matches, (m) => ruleName(m.rule)));
-    renderBreakdown(els.stageBreakdown, groupBy(matches, (m) => m.stage));
-    renderBreakdown(els.weaponBreakdown, groupBy(matches, (m) => m.weapon));
-    renderBreakdown(els.timeBreakdown, groupBy(matches, (m) => timeBand(m.recordedAt)));
+    renderBreakdown(els.seasonBreakdown, matches, (m) => seasonName(m.season));
+    renderBreakdown(els.ruleBreakdown, matches, (m) => ruleName(m.rule));
+    renderBreakdown(els.stageBreakdown, matches, (m) => m.stage);
+    renderBreakdown(els.weaponBreakdown, matches, (m) => m.weapon);
+    renderBreakdown(els.timeBreakdown, matches, (m) => timeBand(m.recordedAt));
   }
 
-  function renderBreakdown(container, groups) {
-    const rows = Object.entries(groups)
-      .map(([name, matches]) => {
-        const wins = matches.filter((m) => m.result === "win").length;
-        const rate = matches.length ? Math.round((wins / matches.length) * 100) : 0;
-        return { name, count: matches.length, rate };
-      })
-      .sort((a, b) => b.count - a.count || b.rate - a.rate);
+  function renderBreakdown(container, matches, getKey) {
+    const rows = domain.breakdownRows(matches, getKey);
 
     container.innerHTML = rows.length
       ? rows
@@ -1006,15 +974,6 @@
     els.lastSaved.textContent = message;
   }
 
-  function groupBy(items, getKey) {
-    return items.reduce((acc, item) => {
-      const key = getKey(item);
-      acc[key] = acc[key] || [];
-      acc[key].push(item);
-      return acc;
-    }, {});
-  }
-
   function unique(values) {
     return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b, "ja"));
   }
@@ -1063,19 +1022,6 @@
       month: "2-digit",
       day: "2-digit",
     }).format(date);
-  }
-
-  function startOfDay(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
-  }
-
-  function endOfDay(date) {
-    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-  }
-
-  function parseDateInput(value) {
-    const [year, month, day] = value.split("-").map(Number);
-    return new Date(year, month - 1, day);
   }
 
   function dateInputValue(date) {

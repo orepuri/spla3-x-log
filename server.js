@@ -301,5 +301,7 @@ function sendJson(res, status, payload) {
 }
 
 module.exports = {
+  handleRequest,
+  normalizeState,
   readJsonBody,
 };

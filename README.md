@@ -13,6 +13,21 @@ npm run start
 
 データを保存するには `DATABASE_URL` でPostgres接続先を指定します。Postgres込みで動かす場合はDocker Composeを使います。
 
+## テスト
+
+集計ロジックとAPIの単体テストを実行します。
+
+```sh
+npm test
+```
+
+現行UIの主要操作をChromiumで確認します。初回だけPlaywrightのブラウザをインストールします。
+
+```sh
+npx playwright install chromium
+npm run test:e2e
+```
+
 ## Docker Compose
 
 ```sh
