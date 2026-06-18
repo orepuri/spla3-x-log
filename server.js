@@ -57,28 +57,6 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
-  if (url.pathname === "/api/state") {
-    if (!database) {
-      sendJson(res, 503, { error: "Database is not configured" });
-      return;
-    }
-
-    if (req.method === "GET") {
-      sendJson(res, 200, await readState(database));
-      return;
-    }
-
-    if (req.method === "PUT") {
-      const state = await readJsonBody(req);
-      await writeState(database, state);
-      sendJson(res, 200, await readState(database));
-      return;
-    }
-
-    sendJson(res, 405, { error: "Method not allowed" });
-    return;
-  }
-
   if (url.pathname === "/api/archive") {
     await handleArchiveRequest(req, res, database);
     return;
@@ -130,12 +108,12 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
-  if (isReactAppPath(url.pathname)) {
-    serveReactApp(req, res, url);
+  if (url.pathname.startsWith("/api/")) {
+    sendJson(res, 404, { error: "Not found" });
     return;
   }
 
-  serveStatic(req, res, url);
+  serveReactApp(req, res, url);
 }
 
 async function migrate() {
@@ -944,13 +922,6 @@ function readJsonBody(req) {
   });
 }
 
-function serveStatic(req, res, url) {
-  const safePath = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
-  const requested = path.join(root, safePath === "/legacy" ? "index.html" : safePath);
-  const filePath = requested.startsWith(root) ? requested : path.join(root, "index.html");
-  serveFile(req, res, filePath);
-}
-
 function serveReactApp(req, res, url) {
   const isAsset = url.pathname.startsWith("/assets/");
   const safePath = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
@@ -976,18 +947,6 @@ function serveFile(req, res, filePath) {
   });
 }
 
-function isReactAppPath(pathname) {
-  return (
-    pathname.startsWith("/assets/") ||
-    pathname === "/" ||
-    pathname === "/record" ||
-    pathname === "/backfill" ||
-    pathname === "/data" ||
-    pathname === "/analysis" ||
-    pathname.startsWith("/analysis/")
-  );
-}
-
 function sendJson(res, status, payload) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
@@ -995,7 +954,6 @@ function sendJson(res, status, payload) {
 
 module.exports = {
   handleRequest,
-  isReactAppPath,
   normalizeState,
   readJsonBody,
 };

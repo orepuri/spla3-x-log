@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 const test = require("node:test");
-const { handleRequest, isReactAppPath, normalizeState } = require("../server");
+const { handleRequest, normalizeState } = require("../server");
 
 test("health endpoint returns JSON with database status", async () => {
   const response = createResponse();
@@ -20,20 +20,11 @@ test("health endpoint returns JSON with database status", async () => {
   assert.deepEqual(JSON.parse(response.body), { ok: true, database: false });
 });
 
-test("state endpoint reports unavailable database without mutating data", async () => {
+test("unknown API routes return JSON 404", async () => {
   const response = createResponse();
-
-  await handleRequest(
-    {
-      headers: { host: "127.0.0.1" },
-      method: "GET",
-      url: "/api/state",
-    },
-    response,
-  );
-
-  assert.equal(response.status, 503);
-  assert.deepEqual(JSON.parse(response.body), { error: "Database is not configured" });
+  await handleRequest(createRequest("GET", "/api/unknown"), response);
+  assert.equal(response.status, 404);
+  assert.deepEqual(JSON.parse(response.body), { error: "Not found" });
 });
 
 test("normalizeState preserves valid Japanese stage and weapon names", () => {
@@ -57,18 +48,7 @@ test("normalizeState preserves valid Japanese stage and weapon names", () => {
   assert.equal(normalized.matches[0].weapon, "スプラシューター");
 });
 
-test("React application routes are distinct from the legacy root", () => {
-  assert.equal(isReactAppPath("/"), true);
-  assert.equal(isReactAppPath("/legacy"), false);
-  assert.equal(isReactAppPath("/record"), true);
-  assert.equal(isReactAppPath("/backfill"), true);
-  assert.equal(isReactAppPath("/data"), true);
-  assert.equal(isReactAppPath("/analysis"), true);
-  assert.equal(isReactAppPath("/analysis/history"), true);
-  assert.equal(isReactAppPath("/assets/index.js"), true);
-});
-
-test("settings API reads and updates settings without using the legacy state endpoint", async () => {
+test("settings API reads and updates settings", async () => {
   const calls = [];
   const database = {
     async query(sql, values = []) {
