@@ -62,6 +62,8 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
+E2EではiPad横向きの`1024x768`、`1180x820`、`1366x1024`、iPhoneの`390x844`、PCの`1440x900`で主要画面の横はみ出しとナビゲーション配置も確認します。
+
 ## Docker Compose
 
 ```sh
