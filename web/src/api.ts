@@ -33,6 +33,7 @@ export async function createMatch(input: {
   stage: string;
   weapon: string;
   result: MatchResult;
+  recordedAt?: string;
 }): Promise<Match> {
   return request<Match>("/api/matches", {
     body: JSON.stringify(input),
@@ -49,6 +50,7 @@ export async function createXpRecord(input: {
   season: string;
   rule: string;
   xp: number;
+  recordedAt?: string;
 }): Promise<XpRecord> {
   return request<XpRecord>("/api/xp-records", {
     body: JSON.stringify(input),

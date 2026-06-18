@@ -9,6 +9,7 @@ import {
   Swords,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { BackfillPage } from "./BackfillPage";
 import { RecordPage } from "./RecordPage";
 
 const primaryNavigation = [
@@ -104,24 +105,6 @@ function PageHeader({ title, meta }: { title: string; meta: string }) {
   );
 }
 
-function BackfillPage() {
-  return (
-    <div className="page">
-      <PageHeader meta="日時を指定して記録" title="過去データ入力" />
-      <div className="backfill-layout">
-        <section className="surface">
-          <SectionHeading icon={Clock3} title="過去の試合" />
-          <FormPlaceholder fields={["日時", "ルール", "武器", "ステージ", "勝敗"]} />
-        </section>
-        <section className="surface">
-          <SectionHeading icon={BarChart3} title="過去のXP" />
-          <FormPlaceholder fields={["日時", "ルール", "XP"]} />
-        </section>
-      </div>
-    </div>
-  );
-}
-
 function AnalysisLayout() {
   return (
     <div className="page">
@@ -188,22 +171,6 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="metric">
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
-  );
-}
-
-function FormPlaceholder({ fields }: { fields: string[] }) {
-  return (
-    <div className="placeholder-form">
-      {fields.map((field) => (
-        <label className="preview-field" key={field}>
-          <span>{field}</span>
-          <input aria-label={field} disabled placeholder="-" />
-        </label>
-      ))}
-      <button className="primary-button" disabled type="button">
-        保存
-      </button>
     </div>
   );
 }

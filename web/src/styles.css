@@ -477,10 +477,54 @@ input {
   align-items: start;
 }
 
-.placeholder-form {
+.backfill-page-header {
+  align-items: center;
+}
+
+.datetime-surface {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.time-stepper {
+  display: flex;
+  gap: 8px;
+}
+
+.time-stepper button {
+  min-width: 76px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.time-stepper button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.backfill-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.xp-backfill-form {
+  grid-template-columns: 1fr;
+}
+
+.backfill-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }
 
 .primary-button {
@@ -643,6 +687,12 @@ input {
     gap: 6px;
   }
 
+  .backfill-page-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+
   .record-feedback {
     text-align: left;
   }
@@ -658,8 +708,16 @@ input {
   .field-grid,
   .filter-row,
   .analysis-metrics,
-  .placeholder-form {
+  .backfill-form {
     grid-template-columns: 1fr;
+  }
+
+  .datetime-surface {
+    grid-template-columns: 1fr;
+  }
+
+  .time-stepper > * {
+    flex: 1;
   }
 
   .metric-row {
