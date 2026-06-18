@@ -2,7 +2,7 @@ const { expect, test } = require("@playwright/test");
 
 test("records a match with the current settings", async ({ page }) => {
   const api = await mockStateApi(page);
-  await page.goto("/");
+  await page.goto("/legacy");
 
   await expect(page.getByRole("heading", { name: "Xマッチログ" })).toBeVisible();
   await expect(page.locator("#matchCount")).toHaveText("3戦");
@@ -20,7 +20,7 @@ test("records a match with the current settings", async ({ page }) => {
 
 test("filters analysis and shows history without changing saved data", async ({ page }) => {
   const api = await mockStateApi(page);
-  await page.goto("/");
+  await page.goto("/legacy");
 
   await expect(page.locator("#winRate")).toHaveText("67%");
   await page.locator("#filterStage").selectOption("ユノハナ大渓谷");

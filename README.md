@@ -9,7 +9,7 @@ npm install
 npm run start
 ```
 
-ブラウザで `http://127.0.0.1:5173` を開きます。
+ブラウザで `http://127.0.0.1:5173` を開きます。React版の試合記録画面へ移動します。
 
 データを保存するには `DATABASE_URL` でPostgres接続先を指定します。Postgres込みで動かす場合はDocker Composeを使います。
 
@@ -18,6 +18,8 @@ React版の画面は次のURLで確認できます。
 - `http://127.0.0.1:5173/record`
 - `http://127.0.0.1:5173/backfill`
 - `http://127.0.0.1:5173/analysis/summary`
+
+移行確認用の旧画面は`http://127.0.0.1:5173/legacy`に残しています。
 
 `/record`では現在設定の保存、設定条件に対応する最新XP・勝率表示、WIN/LOSE、XP登録、最後の試合取り消しを利用できます。
 `/backfill`では記録日時を指定した試合・XP入力と、日時の前後5分調整を利用できます。

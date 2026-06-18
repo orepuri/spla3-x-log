@@ -58,7 +58,8 @@ test("normalizeState preserves valid Japanese stage and weapon names", () => {
 });
 
 test("React application routes are distinct from the legacy root", () => {
-  assert.equal(isReactAppPath("/"), false);
+  assert.equal(isReactAppPath("/"), true);
+  assert.equal(isReactAppPath("/legacy"), false);
   assert.equal(isReactAppPath("/record"), true);
   assert.equal(isReactAppPath("/backfill"), true);
   assert.equal(isReactAppPath("/analysis"), true);

@@ -18,6 +18,38 @@ test("opens React routes directly and navigates between workflows", async ({ pag
   await expect(page.getByRole("heading", { level: 2, name: "履歴" })).toBeVisible();
 });
 
+test("uses the React record page as the root application", async ({ page }) => {
+  await page.route("**/api/**", (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    let body = {};
+    if (pathname === "/api/settings") {
+      body = {
+        season: "2026-summer",
+        rule: "area",
+        weapon: "スプラシューター",
+        stageA: "ユノハナ大渓谷",
+        stageB: "マサバ海峡大橋",
+      };
+    } else if (pathname === "/api/matches") {
+      body = { items: [], nextCursor: null };
+    } else if (pathname === "/api/analysis/current") {
+      body = {
+        latestXp: null,
+        weapon: { wins: 0, losses: 0, total: 0, winRate: null },
+        stages: [],
+      };
+    }
+    return route.fulfill({
+      body: JSON.stringify(body),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/record$/);
+  await expect(page.getByRole("heading", { level: 1, name: "試合記録" })).toBeVisible();
+});
+
 test("uses bottom navigation on an iPhone viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/record");

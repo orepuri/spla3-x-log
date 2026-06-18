@@ -45,7 +45,7 @@ function AppShell() {
             <NavigationLink key={item.to} {...item} />
           ))}
         </nav>
-        <a className="legacy-link" href="/">
+        <a className="legacy-link" href="/legacy">
           現行画面
           <ChevronRight aria-hidden="true" size={16} />
         </a>

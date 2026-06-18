@@ -840,7 +840,7 @@ function readJsonBody(req) {
 
 function serveStatic(req, res, url) {
   const safePath = path.normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, "");
-  const requested = path.join(root, safePath === "/" ? "index.html" : safePath);
+  const requested = path.join(root, safePath === "/legacy" ? "index.html" : safePath);
   const filePath = requested.startsWith(root) ? requested : path.join(root, "index.html");
   serveFile(req, res, filePath);
 }
@@ -873,6 +873,7 @@ function serveFile(req, res, filePath) {
 function isReactAppPath(pathname) {
   return (
     pathname.startsWith("/assets/") ||
+    pathname === "/" ||
     pathname === "/record" ||
     pathname === "/backfill" ||
     pathname === "/analysis" ||
