@@ -161,7 +161,10 @@ test("matches API applies filters and returns a reusable cursor", async () => {
 
   const response = createResponse();
   await handleRequest(
-    createRequest("GET", "/api/matches?season=2026-summer&rule=area&stage=デカライン高架下&limit=2"),
+    createRequest(
+      "GET",
+      "/api/matches?season=2026-summer&rule=area&stage=デカライン高架下&stage=ユノハナ大渓谷&limit=2",
+    ),
     response,
     database,
   );
@@ -174,8 +177,13 @@ test("matches API applies filters and returns a reusable cursor", async () => {
   assert.ok(page.nextCursor);
   assert.match(calls[0].sql, /season = \$1/);
   assert.match(calls[0].sql, /rule = \$2/);
-  assert.match(calls[0].sql, /stage = \$3/);
-  assert.deepEqual(calls[0].values, ["2026-summer", "area", "デカライン高架下", 3]);
+  assert.match(calls[0].sql, /stage = ANY\(\$3::text\[\]\)/);
+  assert.deepEqual(calls[0].values, [
+    "2026-summer",
+    "area",
+    ["デカライン高架下", "ユノハナ大渓谷"],
+    3,
+  ]);
 
   const nextResponse = createResponse();
   await handleRequest(

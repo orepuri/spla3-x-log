@@ -72,6 +72,17 @@ export async function getLatestMatches(limit = 1): Promise<PageResult<Match>> {
   return request<PageResult<Match>>(`/api/matches?limit=${limit}`);
 }
 
+export async function getRecentMatches(settings: AppSettings, limit = 10): Promise<PageResult<Match>> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    rule: settings.rule,
+    season: settings.season,
+  });
+  params.append("stage", settings.stageA);
+  if (settings.stageB !== settings.stageA) params.append("stage", settings.stageB);
+  return request<PageResult<Match>>(`/api/matches?${params}`);
+}
+
 export async function getMatches(options: {
   filters: AnalysisFilters;
   cursor?: string;

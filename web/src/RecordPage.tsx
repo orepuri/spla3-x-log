@@ -7,6 +7,7 @@ import {
   deleteMatch,
   getCurrentAnalysis,
   getLatestMatches,
+  getRecentMatches,
   getSettings,
   getXpState,
   patchSettings,
@@ -34,6 +35,11 @@ export function RecordPage() {
   const latestMatchesQuery = useQuery({
     queryFn: () => getLatestMatches(1),
     queryKey: ["matches", "latest"],
+  });
+  const recentMatchesQuery = useQuery({
+    enabled: Boolean(settings.season && settings.rule && settings.stageA && settings.stageB),
+    queryFn: () => getRecentMatches(settings),
+    queryKey: ["matches", "recent", settings.season, settings.rule, settings.stageA, settings.stageB],
   });
   const xpStateQuery = useQuery({
     enabled: Boolean(settings.season && settings.rule),
@@ -188,13 +194,6 @@ export function RecordPage() {
             />
             <SelectField
               disabled={isBusy}
-              label="シーズン"
-              onChange={(value) => saveSetting("season", value)}
-              options={seasons.map((season) => ({ label: season.name, value: season.id }))}
-              value={settings.season}
-            />
-            <SelectField
-              disabled={isBusy}
               label="ステージA"
               onChange={(value) => saveSetting("stageA", value)}
               options={stages.map((stage) => ({ label: stage, value: stage }))}
@@ -206,6 +205,13 @@ export function RecordPage() {
               onChange={(value) => saveSetting("stageB", value)}
               options={stages.map((stage) => ({ label: stage, value: stage }))}
               value={settings.stageB}
+            />
+            <SelectField
+              disabled={isBusy}
+              label="シーズン"
+              onChange={(value) => saveSetting("season", value)}
+              options={seasons.map((season) => ({ label: season.name, value: season.id }))}
+              value={settings.season}
             />
           </div>
         </section>
@@ -285,8 +291,45 @@ export function RecordPage() {
             </button>
           </form>
         </section>
+
+        <section className="surface recent-matches-surface">
+          <SectionHeading icon={ListChecks} title="現在設定の直近10試合" />
+          {recentMatchesQuery.isLoading ? (
+            <div className="inline-status">試合履歴を読み込んでいます</div>
+          ) : recentMatchesQuery.isError ? (
+            <div className="inline-error">試合履歴を読み込めません</div>
+          ) : recentMatchesQuery.data?.items.length ? (
+            <RecentMatches matches={recentMatchesQuery.data.items} />
+          ) : (
+            <div className="inline-status">該当する試合はありません</div>
+          )}
+        </section>
       </div>
     </div>
+  );
+}
+
+function RecentMatches({ matches }: { matches: Array<{ id: string; recordedAt: string; result: MatchResult; stage: string }> }) {
+  const wins = matches.filter((match) => match.result === "win").length;
+
+  return (
+    <>
+      <div className="recent-match-summary">
+        <strong>
+          {wins}勝{matches.length - wins}敗
+        </strong>
+        <span>直近{matches.length}試合</span>
+      </div>
+      <div className="recent-match-list">
+        {matches.map((match) => (
+          <div className="recent-match-row" key={match.id}>
+            <b className={match.result}>{match.result === "win" ? "WIN" : "LOSE"}</b>
+            <strong>{match.stage}</strong>
+            <time dateTime={match.recordedAt}>{formatDateTime(match.recordedAt)}</time>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

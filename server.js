@@ -388,7 +388,6 @@ async function handleMatchesRequest(req, res, url, database) {
       ["season", "season"],
       ["rule", "rule"],
       ["weapon", "weapon"],
-      ["stage", "stage"],
     ];
     const where = [];
     const values = [];
@@ -398,6 +397,12 @@ async function handleMatchesRequest(req, res, url, database) {
       if (!value || value === "all") continue;
       values.push(value);
       where.push(`${column} = $${values.length}`);
+    }
+
+    const stages = url.searchParams.getAll("stage").filter(Boolean);
+    if (stages.length) {
+      values.push(stages);
+      where.push(`stage = ANY($${values.length}::text[])`);
     }
 
     const time = url.searchParams.get("time");

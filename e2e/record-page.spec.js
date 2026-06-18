@@ -7,6 +7,12 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   await expect(page.getByLabel("武器")).toHaveValue("スプラシューター");
   await expect(page.getByText("2150.5")).toBeVisible();
   await expect(page.locator(".performance-surface .metric").nth(1).locator("strong")).toHaveText("50%");
+  await expect(page.getByRole("heading", { name: "現在設定の直近10試合" })).toBeVisible();
+  await expect(page.locator(".recent-match-row")).toHaveCount(2);
+  expect(api.recentMatchStages).toEqual(["ユノハナ大渓谷", "マサバ海峡大橋"]);
+
+  const settingLabels = await page.locator(".settings-surface .preview-field > span").allTextContents();
+  expect(settingLabels.indexOf("シーズン")).toBeGreaterThan(settingLabels.indexOf("ステージB"));
 
   await page.getByLabel("ステージA").selectOption("デカライン高架下");
   await expect.poll(() => api.settings.stageA).toBe("デカライン高架下");
@@ -69,6 +75,7 @@ test("prefills estimated XP when a set completes and links it to the completion 
 async function mockRecordApis(page, options = {}) {
   const api = {
     matchPostCount: 0,
+    recentMatchStages: [],
     matches: [
       match("match-2", "ユノハナ大渓谷", "lose", "2026-06-17T02:00:00.000Z"),
       match("match-1", "ユノハナ大渓谷", "win", "2026-06-17T01:00:00.000Z"),
@@ -112,6 +119,8 @@ async function mockRecordApis(page, options = {}) {
     }
 
     if (url.pathname === "/api/matches" && method === "GET") {
+      const requestedStages = url.searchParams.getAll("stage");
+      if (requestedStages.length) api.recentMatchStages = requestedStages;
       return json(route, { items: api.matches.slice(0, Number(url.searchParams.get("limit") || 25)), nextCursor: null });
     }
 
