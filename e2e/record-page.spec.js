@@ -1,0 +1,176 @@
+const { expect, test } = require("@playwright/test");
+
+test("updates settings and records match, XP, and undo through resource APIs", async ({ page }) => {
+  const api = await mockRecordApis(page);
+  await page.goto("/record");
+
+  await expect(page.getByLabel("武器")).toHaveValue("スプラシューター");
+  await expect(page.getByText("2150.5")).toBeVisible();
+  await expect(page.locator(".performance-surface .metric").nth(1).locator("strong")).toHaveText("50%");
+
+  await page.getByLabel("ステージA").selectOption("デカライン高架下");
+  await expect.poll(() => api.settings.stageA).toBe("デカライン高架下");
+  await expect(page.getByRole("button", { name: "デカライン高架下 WIN" })).toBeVisible();
+
+  await page.getByRole("button", { name: "デカライン高架下 WIN" }).click();
+  await expect.poll(() => api.matches.length).toBe(3);
+  expect(api.matches[0].stage).toBe("デカライン高架下");
+  expect(api.matches[0].result).toBe("win");
+  await expect(page.getByText("WINを保存しました")).toBeVisible();
+
+  await page.getByLabel("現在XP").fill("2200.5");
+  await page.getByRole("button", { name: "XP保存" }).click();
+  await expect.poll(() => api.xpRecords[0].xp).toBe(2200.5);
+  await expect(page.getByText("2200.5")).toBeVisible();
+
+  await page.getByRole("button", { name: "最後を取り消す" }).click();
+  await expect.poll(() => api.matches.length).toBe(2);
+  await expect(page.getByText("最後の試合を取り消しました")).toBeVisible();
+});
+
+test("disables result actions while a match is being saved", async ({ page }) => {
+  let releaseRequest;
+  const pendingRequest = new Promise((resolve) => {
+    releaseRequest = resolve;
+  });
+  const api = await mockRecordApis(page, { pendingMatch: pendingRequest });
+  await page.goto("/record");
+
+  const button = page.getByRole("button", { name: "ユノハナ大渓谷 WIN" });
+  await button.click();
+  await expect(button).toBeDisabled();
+  await button.click({ force: true });
+  expect(api.matchPostCount).toBe(1);
+
+  releaseRequest();
+  await expect(page.getByText("WINを保存しました")).toBeVisible();
+});
+
+async function mockRecordApis(page, options = {}) {
+  const api = {
+    matchPostCount: 0,
+    matches: [
+      match("match-2", "ユノハナ大渓谷", "lose", "2026-06-17T02:00:00.000Z"),
+      match("match-1", "ユノハナ大渓谷", "win", "2026-06-17T01:00:00.000Z"),
+    ],
+    settings: {
+      season: "2026-summer",
+      rule: "area",
+      weapon: "スプラシューター",
+      stageA: "ユノハナ大渓谷",
+      stageB: "マサバ海峡大橋",
+    },
+    xpRecords: [
+      {
+        id: "xp-1",
+        season: "2026-summer",
+        rule: "area",
+        xp: 2150.5,
+        recordedAt: "2026-06-17T03:00:00.000Z",
+      },
+    ],
+  };
+
+  await page.route("**/api/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const method = request.method();
+
+    if (url.pathname === "/api/settings") {
+      if (method === "PUT") api.settings = request.postDataJSON();
+      return json(route, api.settings);
+    }
+
+    if (url.pathname === "/api/analysis/current") {
+      const stageNames = url.searchParams.getAll("stage");
+      return json(route, currentAnalysis(api, stageNames));
+    }
+
+    if (url.pathname === "/api/matches" && method === "GET") {
+      return json(route, { items: api.matches.slice(0, Number(url.searchParams.get("limit") || 25)), nextCursor: null });
+    }
+
+    if (url.pathname === "/api/matches" && method === "POST") {
+      api.matchPostCount += 1;
+      if (options.pendingMatch) await options.pendingMatch;
+      const input = request.postDataJSON();
+      const created = {
+        ...input,
+        id: `match-new-${api.matchPostCount}`,
+        recordedAt: new Date().toISOString(),
+      };
+      api.matches.unshift(created);
+      return json(route, created, 201);
+    }
+
+    if (url.pathname.startsWith("/api/matches/") && method === "DELETE") {
+      const id = decodeURIComponent(url.pathname.split("/").at(-1));
+      api.matches = api.matches.filter((item) => item.id !== id);
+      return route.fulfill({ status: 204 });
+    }
+
+    if (url.pathname === "/api/xp-records" && method === "POST") {
+      const input = request.postDataJSON();
+      const created = {
+        ...input,
+        id: "xp-new",
+        recordedAt: new Date().toISOString(),
+      };
+      api.xpRecords.unshift(created);
+      return json(route, created, 201);
+    }
+
+    return route.continue();
+  });
+
+  return api;
+}
+
+function currentAnalysis(api, stageNames) {
+  const relevant = api.matches.filter(
+    (item) =>
+      item.season === api.settings.season &&
+      item.rule === api.settings.rule &&
+      item.weapon === api.settings.weapon,
+  );
+  return {
+    latestXp: api.xpRecords.find(
+      (item) => item.season === api.settings.season && item.rule === api.settings.rule,
+    ),
+    weapon: summary(relevant),
+    stages: stageNames.map((stage) => ({
+      stage,
+      ...summary(relevant.filter((item) => item.stage === stage)),
+    })),
+  };
+}
+
+function summary(items) {
+  const wins = items.filter((item) => item.result === "win").length;
+  return {
+    wins,
+    losses: items.length - wins,
+    total: items.length,
+    winRate: items.length ? Math.round((wins / items.length) * 100) : null,
+  };
+}
+
+function match(id, stage, result, recordedAt) {
+  return {
+    id,
+    season: "2026-summer",
+    rule: "area",
+    stage,
+    weapon: "スプラシューター",
+    result,
+    recordedAt,
+  };
+}
+
+function json(route, body, status = 200) {
+  return route.fulfill({
+    body: JSON.stringify(body),
+    contentType: "application/json; charset=utf-8",
+    status,
+  });
+}

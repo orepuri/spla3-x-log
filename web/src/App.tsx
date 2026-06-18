@@ -6,10 +6,10 @@ import {
   Gamepad2,
   History,
   LayoutDashboard,
-  ListChecks,
   Swords,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { RecordPage } from "./RecordPage";
 
 const primaryNavigation = [
   { to: "/record", label: "試合記録", icon: Swords },
@@ -104,48 +104,6 @@ function PageHeader({ title, meta }: { title: string; meta: string }) {
   );
 }
 
-function RecordPage() {
-  return (
-    <div className="page">
-      <PageHeader meta="2026夏 Sizzle Season" title="試合記録" />
-      <div className="record-layout">
-        <section className="surface settings-surface">
-          <SectionHeading icon={ListChecks} title="現在設定" />
-          <div className="field-grid">
-            <Field label="ルール" value="ガチエリア" />
-            <Field label="武器" value="スプラシューター" />
-            <Field label="ステージA" value="ユノハナ大渓谷" />
-            <Field label="ステージB" value="マサバ海峡大橋" />
-          </div>
-        </section>
-
-        <section className="surface performance-surface">
-          <SectionHeading icon={BarChart3} title="現在設定の成績" />
-          <div className="metric-row">
-            <Metric label="最新XP" value="-" />
-            <Metric label="武器勝率" value="-" />
-            <Metric label="試合数" value="-" />
-          </div>
-          <div className="stage-stat-list">
-            <StageStat name="ユノハナ大渓谷" />
-            <StageStat name="マサバ海峡大橋" />
-          </div>
-        </section>
-
-        <section className="surface result-surface">
-          <SectionHeading icon={Swords} title="試合結果" />
-          <div className="result-grid">
-            <ResultButton result="WIN" stage="ユノハナ大渓谷" tone="win" />
-            <ResultButton result="LOSE" stage="ユノハナ大渓谷" tone="lose" />
-            <ResultButton result="WIN" stage="マサバ海峡大橋" tone="win" />
-            <ResultButton result="LOSE" stage="マサバ海峡大橋" tone="lose" />
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-}
-
 function BackfillPage() {
   return (
     <div className="page">
@@ -225,42 +183,12 @@ function SectionHeading({ icon: Icon, title }: { icon: LucideIcon; title: string
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <label className="preview-field">
-      <span>{label}</span>
-      <select aria-label={label} defaultValue={value}>
-        <option>{value}</option>
-      </select>
-    </label>
-  );
-}
-
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="metric">
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
-  );
-}
-
-function StageStat({ name }: { name: string }) {
-  return (
-    <div className="stage-stat">
-      <span>{name}</span>
-      <strong>-</strong>
-      <small>0戦</small>
-    </div>
-  );
-}
-
-function ResultButton({ result, stage, tone }: { result: string; stage: string; tone: "win" | "lose" }) {
-  return (
-    <button className={`result-button ${tone}`} disabled type="button">
-      <span>{stage}</span>
-      <strong>{result}</strong>
-    </button>
   );
 }
 
