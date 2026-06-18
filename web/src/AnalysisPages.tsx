@@ -272,25 +272,28 @@ export function XpPage() {
   const xpQuery = useQuery({
     enabled: !preferencesLoading,
     queryFn: async () => {
-      const items: XpRecord[] = [];
-      let cursor: string | undefined;
-      do {
-        const page = await getXpRecords({
-          cursor,
-          end: dateRange.end,
-          limit: 100,
-          rule: filters.rule,
-          season: filters.season,
-          start: dateRange.start,
-        });
-        items.push(...page.items);
-        cursor = page.nextCursor || undefined;
-      } while (cursor && items.length < 1000);
-      return items;
+      const items = await loadXpRecords(filters.season, dateRange.start, dateRange.end);
+      const baselines = dateRange.start
+        ? await Promise.all(
+            rules.map(async (rule) => {
+              const page = await getXpRecords({
+                end: new Date(new Date(dateRange.start as string).getTime() - 1).toISOString(),
+                limit: 1,
+                rule: rule.id,
+                season: filters.season,
+              });
+              return page.items[0] || null;
+            }),
+          )
+        : [];
+      return {
+        baselines: baselines.filter((record): record is XpRecord => Boolean(record)),
+        items,
+      };
     },
-    queryKey: ["analysis-xp", filters.season, filters.rule, preferences],
+    queryKey: ["analysis-xp", filters.season, preferences],
   });
-  const xpRecords = xpQuery.data;
+  const xpRecords = xpQuery.data?.items;
 
   function updatePeriod(key: keyof AnalysisPreferences, value: string) {
     if (key === "xpPeriod" && value === "custom" && (!preferences.xpStart || !preferences.xpEnd)) {
@@ -342,20 +345,27 @@ export function XpPage() {
         <Loading />
       ) : xpQuery.isError ? (
         <ErrorState />
-      ) : !xpRecords || xpRecords.length === 0 ? (
+      ) : !xpQuery.data || (xpQuery.data.items.length === 0 && xpQuery.data.baselines.length === 0) ? (
         <Empty />
       ) : (
         <>
-          <XpChart records={xpRecords} />
-          <div className="xp-record-list">
-            {xpRecords.map((record) => (
-              <div className="xp-record-row" key={record.id}>
-                <strong>{record.xp.toFixed(1)}</strong>
-                <span>{ruleName(record.rule)}</span>
-                <time>{formatDateTime(record.recordedAt)}</time>
-              </div>
-            ))}
-          </div>
+          <XpChart
+            baselines={xpQuery.data?.baselines || []}
+            end={dateRange.end}
+            records={xpRecords || []}
+            start={dateRange.start}
+          />
+          {xpRecords?.length ? (
+            <div className="xp-record-list">
+              {xpRecords.map((record) => (
+                <div className="xp-record-row" key={record.id}>
+                  <strong>{record.xp.toFixed(1)}</strong>
+                  <span>{ruleName(record.rule)}</span>
+                  <time>{formatDateTime(record.recordedAt)}</time>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </>
       )}
     </section>
@@ -383,14 +393,14 @@ function AnalysisFilters({
         options={[{ label: "すべて", value: "all" }, ...options.seasons.map((item) => ({ label: seasonName(item), value: item }))]}
         value={filters.season}
       />
-      <FilterSelect
-        label="ルール"
-        onChange={(value) => setFilter("rule", value)}
-        options={[{ label: "すべて", value: "all" }, ...options.rules.map((item) => ({ label: ruleName(item), value: item }))]}
-        value={filters.rule}
-      />
       {!xpOnly ? (
         <>
+          <FilterSelect
+            label="ルール"
+            onChange={(value) => setFilter("rule", value)}
+            options={[{ label: "すべて", value: "all" }, ...options.rules.map((item) => ({ label: ruleName(item), value: item }))]}
+            value={filters.rule}
+          />
           <FilterSelect
             label="武器"
             onChange={(value) => setFilter("weapon", value)}
@@ -571,44 +581,194 @@ function HistoryEdit({
   );
 }
 
-function XpChart({ records }: { records: XpRecord[] }) {
-  const ordered = records.slice().reverse();
-  const values = ordered.map((record) => record.xp);
-  const min = Math.floor(Math.min(...values) - 20);
-  const max = Math.ceil(Math.max(...values) + 20);
+const xpRuleColors: Record<RuleId, string> = {
+  area: "#138e9d",
+  tower: "#d45b85",
+  rainmaker: "#a47700",
+  clam: "#6d58b8",
+};
+
+function XpChart({
+  baselines,
+  end,
+  records,
+  start,
+}: {
+  baselines: XpRecord[];
+  end?: string;
+  records: XpRecord[];
+  start?: string;
+}) {
+  const chart = buildDailyXpSeries(records, baselines, start, end);
+  const values = chart.series.flatMap((series) => series.points.map((point) => point.xp));
+  const dataMin = Math.floor(Math.min(...values) - 20);
+  const dataMax = Math.ceil(Math.max(...values) + 20);
+  const yTicks = chartTicks(dataMin, dataMax, 5);
+  const min = yTicks[0];
+  const max = yTicks.at(-1) as number;
   const span = Math.max(1, max - min);
+  const xTicks = dayTicks(chart.days, 6);
   const width = 720;
   const height = 260;
-  const pad = 36;
-  const points = ordered.map((record, index) => ({
-    record,
-    x: pad + (index / Math.max(1, ordered.length - 1)) * (width - pad * 2),
-    y: height - pad - ((record.xp - min) / span) * (height - pad * 2),
-  }));
-  const path = points.map((point, index) => `${index ? "L" : "M"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
+  const pad = 44;
 
   return (
-    <div className="react-xp-chart">
-      <svg aria-label="XP推移" role="img" viewBox={`0 0 ${width} ${height}`}>
-        <line stroke="#d8ded7" x1={pad} x2={width - pad} y1={height - pad} y2={height - pad} />
-        <line stroke="#d8ded7" x1={pad} x2={pad} y1={pad} y2={height - pad} />
-        <text fill="#68716b" fontSize="12" x={pad} y="22">
-          {max}
-        </text>
-        <text fill="#68716b" fontSize="12" x={pad} y={height - 8}>
-          {min}
-        </text>
-        <path d={path} fill="none" stroke="#138e9d" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-        {points.map((point) => (
-          <circle cx={point.x} cy={point.y} fill="#138e9d" key={point.record.id} r="5">
-            <title>
-              {point.record.xp.toFixed(1)} {formatDateTime(point.record.recordedAt)}
-            </title>
-          </circle>
+    <>
+      <div className="xp-chart-legend">
+        {chart.series.map((series) => (
+          <span key={series.rule}>
+            <i style={{ background: xpRuleColors[series.rule] }} />
+            {ruleName(series.rule)}
+          </span>
         ))}
-      </svg>
-    </div>
+      </div>
+      <div className="react-xp-chart">
+        <svg aria-label="XP推移" role="img" viewBox={`0 0 ${width} ${height}`}>
+          {yTicks.map((tick) => {
+            const y = height - pad - ((tick - min) / span) * (height - pad * 2);
+            return (
+              <g className="xp-y-tick" key={tick}>
+                <line stroke="#e3e7e2" x1={pad} x2={width - pad} y1={y} y2={y} />
+                <text fill="#68716b" fontSize="11" textAnchor="end" x={pad - 7} y={y + 4}>
+                  {tick}
+                </text>
+              </g>
+            );
+          })}
+          {xTicks.map((tick) => {
+            const x = pad + (tick.index / Math.max(1, chart.days.length - 1)) * (width - pad * 2);
+            return (
+              <g className="xp-x-tick" key={tick.day}>
+                <line stroke="#eef0ed" x1={x} x2={x} y1={pad} y2={height - pad} />
+                <line stroke="#aeb7b0" x1={x} x2={x} y1={height - pad} y2={height - pad + 5} />
+                <text fill="#68716b" fontSize="11" textAnchor="middle" x={x} y={height - pad + 19}>
+                  {formatChartDate(tick.day)}
+                </text>
+              </g>
+            );
+          })}
+          <line stroke="#aeb7b0" x1={pad} x2={width - pad} y1={height - pad} y2={height - pad} />
+          <line stroke="#aeb7b0" x1={pad} x2={pad} y1={pad} y2={height - pad} />
+          {chart.series.map((series) => {
+            const points = series.points.map((point) => ({
+              ...point,
+              x: pad + (point.dayIndex / Math.max(1, chart.days.length - 1)) * (width - pad * 2),
+              y: height - pad - ((point.xp - min) / span) * (height - pad * 2),
+            }));
+            const path = points
+              .map((point, index) => `${index ? "L" : "M"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`)
+              .join(" ");
+            return (
+              <g key={series.rule}>
+                <path d={path} fill="none" stroke={xpRuleColors[series.rule]} strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />
+                {points
+                  .filter((point) => point.measured)
+                  .map((point) => (
+                    <circle cx={point.x} cy={point.y} fill={xpRuleColors[series.rule]} key={point.recordedAt} r="4">
+                      <title>
+                        {ruleName(series.rule)} {point.xp.toFixed(1)} {formatDateTime(point.recordedAt as string)}
+                      </title>
+                    </circle>
+                  ))}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </>
   );
+}
+
+async function loadXpRecords(season: string, start?: string, end?: string) {
+  const items: XpRecord[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await getXpRecords({
+      cursor,
+      end,
+      limit: 100,
+      rule: "all",
+      season,
+      start,
+    });
+    items.push(...page.items);
+    cursor = page.nextCursor || undefined;
+  } while (cursor && items.length < 1000);
+  return items;
+}
+
+function buildDailyXpSeries(records: XpRecord[], baselines: XpRecord[], start?: string, end?: string) {
+  const ordered = records.slice().sort((left, right) => new Date(left.recordedAt).getTime() - new Date(right.recordedAt).getTime());
+  const firstDate = start || ordered[0]?.recordedAt;
+  const lastDate = end || ordered.at(-1)?.recordedAt;
+  const days = dateKeys(firstDate as string, lastDate as string);
+  const series = rules.flatMap((rule) => {
+    const daily = new Map<string, XpRecord>();
+    ordered
+      .filter((record) => record.rule === rule.id)
+      .forEach((record) => daily.set(dateKey(record.recordedAt), record));
+    let latest = baselines
+      .filter((record) => record.rule === rule.id)
+      .sort((left, right) => new Date(left.recordedAt).getTime() - new Date(right.recordedAt).getTime())
+      .at(-1);
+    const points = days.flatMap((day, dayIndex) => {
+      const measured = daily.get(day);
+      if (measured) latest = measured;
+      if (!latest) return [];
+      return [{
+        dayIndex,
+        measured: Boolean(measured),
+        recordedAt: measured?.recordedAt || latest.recordedAt,
+        xp: latest.xp,
+      }];
+    });
+    return points.length ? [{ points, rule: rule.id }] : [];
+  });
+  return { days, series };
+}
+
+function dateKeys(start: string, end: string) {
+  const first = new Date(start);
+  const last = new Date(end);
+  first.setHours(0, 0, 0, 0);
+  last.setHours(0, 0, 0, 0);
+  const result: string[] = [];
+  for (const date = first; date <= last; date.setDate(date.getDate() + 1)) {
+    result.push(dateKey(date.toISOString()));
+  }
+  return result;
+}
+
+function dateKey(value: string) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatChartDate(value: string) {
+  const [, month, day] = value.split("-");
+  return `${Number(month)}/${Number(day)}`;
+}
+
+function chartTicks(min: number, max: number, targetCount: number) {
+  const rawStep = Math.max(1, (max - min) / Math.max(1, targetCount - 1));
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const normalized = rawStep / magnitude;
+  const niceStep = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 2.5 ? 2.5 : normalized <= 5 ? 5 : 10) * magnitude;
+  const first = Math.floor(min / niceStep) * niceStep;
+  const last = Math.ceil(max / niceStep) * niceStep;
+  const ticks: number[] = [];
+  for (let value = first; value <= last; value += niceStep) ticks.push(Math.round(value * 10) / 10);
+  if (ticks.length < 2) return [min, max];
+  return ticks;
+}
+
+function dayTicks(days: string[], maxCount: number) {
+  if (days.length <= maxCount) return days.map((day, index) => ({ day, index }));
+  const indexes = new Set<number>();
+  for (let position = 0; position < maxCount; position += 1) {
+    indexes.add(Math.round((position / (maxCount - 1)) * (days.length - 1)));
+  }
+  return [...indexes].sort((left, right) => left - right).map((index) => ({ day: days[index], index }));
 }
 
 function xpDateRange(preferences: AnalysisPreferences) {

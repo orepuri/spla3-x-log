@@ -42,6 +42,15 @@ test("saves the XP period and keeps it across analysis tabs", async ({ page }) =
 
   await expect(page.getByLabel("期間")).toHaveValue("30");
   await expect(page.getByRole("img", { name: "XP推移" })).toBeVisible();
+  await expect(page.locator(".xp-chart-legend")).toContainText("ガチエリア");
+  await expect(page.locator(".xp-chart-legend")).toContainText("ガチヤグラ");
+  await expect(page.getByLabel("ルール")).toHaveCount(0);
+  await expect(page.locator(".react-xp-chart circle")).toHaveCount(6);
+  await expect(page.locator(".react-xp-chart .xp-x-tick")).toHaveCount(6);
+  await expect(page.locator(".react-xp-chart .xp-y-tick")).toHaveCount(5);
+  await expect(page.locator(".react-xp-chart title").filter({ hasText: "ガチエリア 2137.0" })).toHaveCount(1);
+  await expect(page.locator(".react-xp-chart title").filter({ hasText: "2120.0" })).toHaveCount(0);
+  expect(api.requestedAllXpRules).toBe(true);
   await page.getByLabel("期間").selectOption("90");
   await expect.poll(() => api.preferences.xpPeriod).toBe("90");
 
@@ -58,6 +67,7 @@ test("saves the XP period and keeps it across analysis tabs", async ({ page }) =
 async function mockAnalysisApis(page) {
   const api = {
     lastSummaryRule: "all",
+    requestedAllXpRules: false,
     matches: Array.from({ length: 18 }, (_, index) =>
       match(
         `match-${18 - index}`,
@@ -72,13 +82,22 @@ async function mockAnalysisApis(page) {
       xpEnd: "",
       historyPageSize: 15,
     },
-    xpRecords: Array.from({ length: 6 }, (_, index) => ({
-      id: `xp-${index}`,
-      season: "2026-summer",
-      rule: index % 2 ? "tower" : "area",
-      xp: 2100 + index * 18.5,
-      recordedAt: new Date(Date.UTC(2026, 5, 13 + index, 12)).toISOString(),
-    })).reverse(),
+    xpRecords: [
+      ...Array.from({ length: 6 }, (_, index) => ({
+        id: `xp-${index}`,
+        season: "2026-summer",
+        rule: index % 2 ? "tower" : "area",
+        xp: 2100 + index * 18.5,
+        recordedAt: new Date(Date.UTC(2026, 5, 13 + index, 12)).toISOString(),
+      })),
+      {
+        id: "xp-same-day-earlier",
+        season: "2026-summer",
+        rule: "area",
+        xp: 2120,
+        recordedAt: new Date(Date.UTC(2026, 5, 15, 8)).toISOString(),
+      },
+    ].sort((left, right) => new Date(right.recordedAt) - new Date(left.recordedAt)),
   };
 
   await page.route("**/api/**", async (route) => {
@@ -123,7 +142,17 @@ async function mockAnalysisApis(page) {
     }
 
     if (url.pathname === "/api/xp-records") {
-      return json(route, { items: api.xpRecords, nextCursor: null });
+      const rule = url.searchParams.get("rule");
+      const start = url.searchParams.get("start");
+      const end = url.searchParams.get("end");
+      if (!rule && start) api.requestedAllXpRules = true;
+      const items = api.xpRecords.filter(
+        (record) =>
+          (!rule || record.rule === rule) &&
+          (!start || new Date(record.recordedAt) >= new Date(start)) &&
+          (!end || new Date(record.recordedAt) <= new Date(end)),
+      );
+      return json(route, { items, nextCursor: null });
     }
 
     return json(route, {});

@@ -1047,6 +1047,28 @@ input {
   overflow: hidden;
 }
 
+.xp-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 8px;
+}
+
+.xp-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.xp-chart-legend i {
+  width: 14px;
+  height: 4px;
+  border-radius: 999px;
+}
+
 .react-xp-chart svg {
   display: block;
   width: 100%;
