@@ -44,3 +44,32 @@ export interface PageResult<T> {
   items: T[];
   nextCursor: string | null;
 }
+
+export interface AnalysisFilters {
+  season: string;
+  rule: string;
+  weapon: string;
+  stage: string;
+  time: string;
+}
+
+export interface BreakdownItem extends MatchSummary {
+  name: string;
+}
+
+export interface SummaryAnalysis extends MatchSummary {
+  breakdown: {
+    season: BreakdownItem[];
+    rule: BreakdownItem[];
+    stage: BreakdownItem[];
+    weapon: BreakdownItem[];
+    time: BreakdownItem[];
+  };
+}
+
+export interface AnalysisPreferences {
+  xpPeriod: string;
+  xpStart: string;
+  xpEnd: string;
+  historyPageSize: number;
+}

@@ -93,6 +93,23 @@ test("settings API reads and updates settings without using the legacy state end
   assert.equal(calls.length, 2);
 });
 
+test("preferences API reads and updates analysis display settings", async () => {
+  const database = {
+    async query(sql, values = []) {
+      if (sql.includes("RETURNING preferences")) return { rows: [{ preferences: values[0] }] };
+      return { rows: [{ preferences: { xpPeriod: "30", historyPageSize: 25 } }] };
+    },
+  };
+  const getResponse = createResponse();
+  await handleRequest(createRequest("GET", "/api/preferences"), getResponse, database);
+  assert.deepEqual(JSON.parse(getResponse.body), { xpPeriod: "30", historyPageSize: 25 });
+
+  const putResponse = createResponse();
+  const preferences = { xpPeriod: "90", xpStart: "", xpEnd: "", historyPageSize: 50 };
+  await handleRequest(createRequest("PUT", "/api/preferences", preferences), putResponse, database);
+  assert.deepEqual(JSON.parse(putResponse.body), preferences);
+});
+
 test("matches API applies filters and returns a reusable cursor", async () => {
   const calls = [];
   const rows = [
@@ -213,8 +230,10 @@ test("matches API creates, updates, and deletes one match", async () => {
 });
 
 test("XP records API creates and pages records", async () => {
+  const calls = [];
   const database = {
     async query(sql, values) {
+      calls.push({ sql, values });
       if (sql.includes("INSERT INTO xp_records")) {
         return {
           rows: [
@@ -253,11 +272,20 @@ test("XP records API creates and pages records", async () => {
   assert.equal(JSON.parse(createXpResponse.body).xp, 2300.5);
 
   const pageResponse = createResponse();
-  await handleRequest(createRequest("GET", "/api/xp-records?rule=area&limit=1"), pageResponse, database);
+  await handleRequest(
+    createRequest(
+      "GET",
+      "/api/xp-records?rule=area&limit=1&start=2026-06-01T00:00:00.000Z&end=2026-06-30T23:59:59.999Z",
+    ),
+    pageResponse,
+    database,
+  );
   const page = JSON.parse(pageResponse.body);
   assert.equal(page.items.length, 1);
   assert.equal(page.items[0].id, "xp-2");
   assert.ok(page.nextCursor);
+  assert.match(calls[1].sql, /recorded_at >= \$2/);
+  assert.match(calls[1].sql, /recorded_at <= \$3/);
 });
 
 test("current analysis API returns latest XP and win rates for selected stages", async () => {

@@ -84,6 +84,11 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
+  if (url.pathname === "/api/preferences") {
+    await handlePreferencesRequest(req, res, database);
+    return;
+  }
+
   if (url.pathname === "/api/matches") {
     await handleMatchesRequest(req, res, url, database);
     return;
@@ -130,6 +135,13 @@ async function migrate() {
       settings jsonb NOT NULL,
       updated_at timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT single_settings_row CHECK (id = 1)
+    );
+
+    CREATE TABLE IF NOT EXISTS app_preferences (
+      id integer PRIMARY KEY DEFAULT 1,
+      preferences jsonb NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      CONSTRAINT single_preferences_row CHECK (id = 1)
     );
 
     CREATE TABLE IF NOT EXISTS matches (
@@ -275,6 +287,38 @@ async function handleSettingsRequest(req, res, database) {
   sendJson(res, 405, { error: "Method not allowed" });
 }
 
+async function handlePreferencesRequest(req, res, database) {
+  if (!requireDatabase(res, database)) return;
+
+  if (req.method === "GET") {
+    const result = await database.query("SELECT preferences FROM app_preferences WHERE id = 1");
+    sendJson(res, 200, result.rows[0]?.preferences || {});
+    return;
+  }
+
+  if (req.method === "PUT") {
+    const preferences = await readJsonBody(req);
+    if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) {
+      sendJson(res, 400, { error: "Preferences must be an object" });
+      return;
+    }
+    const result = await database.query(
+      `
+        INSERT INTO app_preferences (id, preferences, updated_at)
+        VALUES (1, $1, now())
+        ON CONFLICT (id)
+        DO UPDATE SET preferences = EXCLUDED.preferences, updated_at = now()
+        RETURNING preferences
+      `,
+      [preferences],
+    );
+    sendJson(res, 200, result.rows[0].preferences);
+    return;
+  }
+
+  sendJson(res, 405, { error: "Method not allowed" });
+}
+
 async function handleMatchesRequest(req, res, url, database) {
   if (!requireDatabase(res, database)) return;
 
@@ -298,6 +342,15 @@ async function handleMatchesRequest(req, res, url, database) {
       if (!value || value === "all") continue;
       values.push(value);
       where.push(`${column} = $${values.length}`);
+    }
+
+    const time = url.searchParams.get("time");
+    if (time && time !== "all") {
+      const [start, end] = time.split("-").map(Number);
+      if (Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end <= 24 && start < end) {
+        values.push(start, end);
+        where.push(`EXTRACT(HOUR FROM recorded_at) >= $${values.length - 1} AND EXTRACT(HOUR FROM recorded_at) < $${values.length}`);
+      }
     }
 
     if (page.cursor) {
@@ -421,6 +474,21 @@ async function handleXpRecordsRequest(req, res, url, database) {
       if (!value || value === "all") continue;
       values.push(value);
       where.push(`${column} = $${values.length}`);
+    }
+
+    for (const [parameter, operator] of [
+      ["start", ">="],
+      ["end", "<="],
+    ]) {
+      const value = url.searchParams.get(parameter);
+      if (!value) continue;
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        sendJson(res, 400, { error: `Invalid ${parameter} date` });
+        return;
+      }
+      values.push(date.toISOString());
+      where.push(`recorded_at ${operator} $${values.length}`);
     }
 
     if (page.cursor) {

@@ -21,6 +21,7 @@ React版の画面は次のURLで確認できます。
 
 `/record`では現在設定の保存、設定条件に対応する最新XP・勝率表示、WIN/LOSE、XP登録、最後の試合取り消しを利用できます。
 `/backfill`では記録日時を指定した試合・XP入力と、日時の前後5分調整を利用できます。
+`/analysis`ではURLに保持される分析条件、集計、履歴ページング・編集、サーバーに保存されるXP表示期間を利用できます。
 
 フロントエンドだけをViteの開発サーバーで起動する場合は、別ターミナルでNodeサーバーとViteを起動します。
 
@@ -33,6 +34,8 @@ React版では、旧`/api/state`と同じデータを個別APIから操作でき
 
 - `GET /api/settings`
 - `PUT /api/settings`
+- `GET /api/preferences`
+- `PUT /api/preferences`
 - `GET /api/matches`
 - `POST /api/matches`
 - `PATCH /api/matches/:id`

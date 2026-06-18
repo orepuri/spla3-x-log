@@ -566,12 +566,276 @@ input {
 }
 
 .filter-row {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 14px;
+}
+
+.xp-filter-row {
+  grid-template-columns: repeat(2, minmax(0, 220px));
 }
 
 .analysis-metrics {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.analysis-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.breakdown-section h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.analysis-breakdown-list {
+  display: grid;
+  gap: 7px;
+}
+
+.analysis-breakdown-row {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 9px;
+}
+
+.analysis-breakdown-row > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.analysis-breakdown-row strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.analysis-breakdown-row span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.analysis-bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf1eb;
+}
+
+.analysis-bar span {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+}
+
+.compact-empty {
+  color: var(--muted);
+  padding: 12px 0;
+  font-size: 12px;
+}
+
+.compact-select {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.compact-select select {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 6px 9px;
+}
+
+.react-history-list {
+  display: grid;
+  gap: 7px;
+}
+
+.react-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px 12px;
+}
+
+.react-history-row > div:first-child {
+  min-width: 0;
+}
+
+.react-history-row strong,
+.react-history-row span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-history-row strong {
+  font-size: 13px;
+}
+
+.react-history-row span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.history-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-row-actions b {
+  min-width: 54px;
+  border-radius: 999px;
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 11px;
+}
+
+.history-row-actions b.win {
+  background: var(--lime);
+}
+
+.history-row-actions b.lose {
+  background: var(--pink);
+  color: #fff;
+}
+
+.history-row-actions button,
+.history-edit-actions button,
+.pagination button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.history-row-actions button {
+  width: 36px;
+  padding: 0;
+}
+
+.history-edit {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--cyan);
+  border-radius: 7px;
+  background: #f5fbfb;
+  padding: 10px;
+}
+
+.history-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.history-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.history-edit-actions .save {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+.pagination {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pagination span {
+  color: var(--muted);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pagination button:disabled,
+.history-edit-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.xp-period-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 220px));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.react-xp-chart {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft);
+  overflow: hidden;
+}
+
+.react-xp-chart svg {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+}
+
+.xp-record-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.xp-record-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 4px;
+}
+
+.xp-record-row strong {
+  font-size: 15px;
+}
+
+.xp-record-row span,
+.xp-record-row time {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .empty-state {
@@ -669,6 +933,10 @@ input {
   .result-surface {
     grid-column: auto;
   }
+
+  .filter-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 600px) {
@@ -757,5 +1025,41 @@ input {
 
   .analysis-tabs .nav-link span {
     display: none;
+  }
+
+  .analysis-breakdown-grid,
+  .history-edit-fields,
+  .xp-period-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .compact-select {
+    justify-content: space-between;
+  }
+
+  .react-history-row {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .history-row-actions {
+    justify-content: space-between;
+  }
+
+  .history-edit-actions button {
+    flex: 1;
+  }
+
+  .xp-record-row {
+    grid-template-columns: 80px 1fr;
+  }
+
+  .xp-record-row time {
+    grid-column: 1 / -1;
   }
 }
