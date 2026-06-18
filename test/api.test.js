@@ -371,7 +371,7 @@ test("current analysis API returns latest XP and win rates for selected stages",
   });
 });
 
-test("XP state keeps completed sets pending and estimates from matching historical scores", () => {
+test("XP state keeps completed sets pending and estimates from the completed score", () => {
   const matches = [
     ...scoredMatches("old", "2025-winter", ["win", "lose", "win", "win"], "2026-01-01T00:00:00.000Z"),
     ...scoredMatches("new-a", "2026-summer", ["win", "lose", "win", "win"], "2026-06-18T00:00:00.000Z"),
@@ -395,9 +395,38 @@ test("XP state keeps completed sets pending and estimates from matching historic
   assert.equal(state.pending.length, 2);
   assert.deepEqual(
     { wins: state.pending[0].wins, losses: state.pending[0].losses, estimatedXp: state.pending[0].estimatedXp },
-    { wins: 3, losses: 1, estimatedXp: 2224.6 },
+    { wins: 3, losses: 1, estimatedXp: 2250 },
   );
   assert.equal(state.pending[1].completedMatchId, "new-b-3");
+  assert.equal(state.pending[1].estimatedXp, 2125);
+});
+
+test("XP state applies the basic XP delta for every completed score", () => {
+  const cases = [
+    { results: ["win", "win", "win"], expected: 2275 },
+    { results: ["win", "lose", "win", "win"], expected: 2250 },
+    { results: ["win", "lose", "lose", "win", "win"], expected: 2225 },
+    { results: ["lose", "lose", "lose"], expected: 2125 },
+    { results: ["win", "lose", "lose", "lose"], expected: 2150 },
+    { results: ["win", "win", "lose", "lose", "lose"], expected: 2175 },
+  ];
+
+  for (const [index, testCase] of cases.entries()) {
+    const matches = scoredMatches(
+      `score-${index}`,
+      "2026-summer",
+      testCase.results,
+      "2026-06-18T00:00:00.000Z",
+    ).map(normalizeTestMatch);
+    const state = computeXpState(
+      matches,
+      [xpRecord("base", "2026-summer", 2200, "2026-06-17T23:59:00.000Z")],
+      "2026-summer",
+      "area",
+    );
+
+    assert.equal(state.pending[0].estimatedXp, testCase.expected);
+  }
 });
 
 test("manual XP records do not reset the current set", () => {

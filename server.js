@@ -930,27 +930,6 @@ function computeXpState(matches, xpRecords, selectedSeason, selectedRule) {
     matchesBySeason.set(match.season, items);
   }
 
-  const completedSegments = [];
-  const completedBySeason = new Map();
-  for (const record of ruleRecords.filter((item) => item.recordType === "completed")) {
-    const seasonMatches = matchesBySeason.get(record.season) || [];
-    const boundaryIndex = completedBoundaryIndex(record, seasonMatches);
-    if (record.completedMatchId && boundaryIndex < 0) continue;
-    const previous = completedBySeason.get(record.season) || null;
-    const startIndex = previous ? previous.boundaryIndex + 1 : 0;
-    const segmentMatches = seasonMatches.slice(startIndex, boundaryIndex + 1);
-    const score = scoreMatches(segmentMatches);
-    if (previous && isCompletedScore(score)) {
-      completedSegments.push({
-        delta: record.xp - previous.record.xp,
-        losses: score.losses,
-        outcome: score.wins === 3 ? "win" : "lose",
-        wins: score.wins,
-      });
-    }
-    completedBySeason.set(record.season, { boundaryIndex, record });
-  }
-
   const selectedMatches = matchesBySeason.get(selectedSeason) || [];
   const selectedRecords = ruleRecords.filter((record) => record.season === selectedSeason);
   const latestCompleted = [...selectedRecords]
@@ -967,18 +946,11 @@ function computeXpState(matches, xpRecords, selectedSeason, selectedRule) {
     currentMatches.push(match);
     const score = scoreMatches(currentMatches);
     if (!isCompletedScore(score)) continue;
-    const exactDeltas = completedSegments
-      .filter((segment) => segment.wins === score.wins && segment.losses === score.losses)
-      .map((segment) => segment.delta);
-    const outcome = score.wins === 3 ? "win" : "lose";
-    const fallbackDeltas = completedSegments
-      .filter((segment) => segment.outcome === outcome)
-      .map((segment) => segment.delta);
-    const delta = median(exactDeltas.length ? exactDeltas : fallbackDeltas);
+    const delta = estimatedXpDelta(score);
     pending.push({
       completedAt: match.recordedAt,
       completedMatchId: match.id,
-      estimatedXp: delta === null || !latestCompleted ? null : roundXp(latestCompleted.record.xp + delta),
+      estimatedXp: !latestCompleted ? null : roundXp(latestCompleted.record.xp + delta),
       losses: score.losses,
       wins: score.wins,
     });
@@ -1016,11 +988,9 @@ function isCompletedScore(score) {
   return score.wins === 3 || score.losses === 3;
 }
 
-function median(values) {
-  if (!values.length) return null;
-  const sorted = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+function estimatedXpDelta(score) {
+  if (score.wins === 3) return 75 - score.losses * 25;
+  return -(75 - score.wins * 25);
 }
 
 function roundXp(value) {

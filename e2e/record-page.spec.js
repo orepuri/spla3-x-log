@@ -65,7 +65,7 @@ test("prefills estimated XP when a set completes and links it to the completion 
   await page.getByRole("button", { name: "ユノハナ大渓谷 WIN" }).click();
 
   await expect(page.getByText("未入力のXPがあります")).toBeVisible();
-  await expect(page.getByLabel("確定XP")).toHaveValue("2175.1");
+  await expect(page.getByLabel("確定XP")).toHaveValue("2225.5");
   await page.getByRole("button", { name: "確定XPを保存" }).click();
 
   await expect.poll(() => api.xpRecords[0].recordType).toBe("completed");
@@ -196,7 +196,7 @@ function xpState(api) {
     pending.push({
       completedAt: item.recordedAt,
       completedMatchId: item.id,
-      estimatedXp: base ? base.xp + 24.6 : null,
+      estimatedXp: base ? base.xp + estimateDelta(score) : null,
       losses: score.losses,
       wins: score.wins,
     });
@@ -208,6 +208,11 @@ function xpState(api) {
     latestXp: api.xpRecords[0] || null,
     pending,
   };
+}
+
+function estimateDelta(score) {
+  if (score.wins === 3) return 75 - score.losses * 25;
+  return -(75 - score.wins * 25);
 }
 
 function summary(items) {
