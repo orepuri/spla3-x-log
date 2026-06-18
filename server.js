@@ -22,10 +22,12 @@ const types = {
   ".json": "application/json; charset=utf-8",
 };
 
-start().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (require.main === module) {
+  start().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
 
 async function start() {
   if (pool) {
@@ -245,18 +247,23 @@ function validDate(value) {
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
-    let body = "";
+    const chunks = [];
+    let bodyLength = 0;
 
     req.on("data", (chunk) => {
-      body += chunk;
-      if (body.length > 5_000_000) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      bodyLength += buffer.length;
+      if (bodyLength > 5_000_000) {
         req.destroy();
         reject(new Error("Request body is too large"));
+        return;
       }
+      chunks.push(buffer);
     });
 
     req.on("end", () => {
       try {
+        const body = Buffer.concat(chunks, bodyLength).toString("utf8");
         resolve(body ? JSON.parse(body) : {});
       } catch (error) {
         reject(error);
@@ -292,3 +299,7 @@ function sendJson(res, status, payload) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
 }
+
+module.exports = {
+  readJsonBody,
+};
