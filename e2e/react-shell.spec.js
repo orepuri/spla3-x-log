@@ -56,6 +56,6 @@ test("uses bottom navigation on an iPhone viewport", async ({ page }) => {
 
   await expect(page.locator(".sidebar")).toBeHidden();
   await expect(page.locator(".mobile-nav")).toBeVisible();
-  await expect(page.locator(".mobile-nav .nav-link")).toHaveCount(3);
+  await expect(page.locator(".mobile-nav .nav-link")).toHaveCount(4);
   await expect(page.getByRole("heading", { level: 1, name: "試合記録" })).toBeVisible();
 });

@@ -62,6 +62,7 @@ test("React application routes are distinct from the legacy root", () => {
   assert.equal(isReactAppPath("/legacy"), false);
   assert.equal(isReactAppPath("/record"), true);
   assert.equal(isReactAppPath("/backfill"), true);
+  assert.equal(isReactAppPath("/data"), true);
   assert.equal(isReactAppPath("/analysis"), true);
   assert.equal(isReactAppPath("/analysis/history"), true);
   assert.equal(isReactAppPath("/assets/index.js"), true);
@@ -92,6 +93,59 @@ test("settings API reads and updates settings without using the legacy state end
   assert.equal(putResponse.status, 200);
   assert.deepEqual(JSON.parse(putResponse.body), { rule: "tower", weapon: "52ガロン" });
   assert.equal(calls.length, 2);
+});
+
+test("settings PATCH merges only the changed fields", async () => {
+  const database = {
+    async query(sql, values) {
+      assert.match(sql, /app_settings\.settings \|\| EXCLUDED\.settings/);
+      assert.deepEqual(values, [{ stageA: "デカライン高架下" }]);
+      return {
+        rows: [
+          {
+            settings: {
+              season: "2026-summer",
+              rule: "area",
+              weapon: "スプラシューター",
+              stageA: "デカライン高架下",
+              stageB: "ユノハナ大渓谷",
+            },
+          },
+        ],
+      };
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(
+    createRequest("PATCH", "/api/settings", { stageA: "デカライン高架下" }),
+    response,
+    database,
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(JSON.parse(response.body).stageB, "ユノハナ大渓谷");
+});
+
+test("archive API exports data and rejects malformed imports", async () => {
+  const database = {
+    async query(sql) {
+      if (sql.includes("FROM app_settings")) return { rows: [{ settings: { rule: "area" } }] };
+      if (sql.includes("FROM matches")) return { rows: [matchRow("match-1", "2026-06-18T01:00:00.000Z")] };
+      if (sql.includes("FROM xp_records")) return { rows: [xpRow("xp-1", 2100, "2026-06-18T02:00:00.000Z")] };
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+  const exportResponse = createResponse();
+  await handleRequest(createRequest("GET", "/api/archive"), exportResponse, database);
+  const archive = JSON.parse(exportResponse.body);
+  assert.equal(archive.matches[0].stage, "デカライン高架下");
+  assert.equal(archive.xpRecords[0].xp, 2100);
+
+  const invalidResponse = createResponse();
+  await handleRequest(createRequest("PUT", "/api/archive", { matches: [] }), invalidResponse, database);
+  assert.equal(invalidResponse.status, 400);
+  assert.deepEqual(JSON.parse(invalidResponse.body), { error: "Invalid archive" });
 });
 
 test("preferences API reads and updates analysis display settings", async () => {
@@ -326,6 +380,31 @@ test("current analysis API returns latest XP and win rates for selected stages",
     losses: 1,
     total: 4,
     winRate: 75,
+  });
+});
+
+test("analysis options API returns distinct values from stored history", async () => {
+  const results = [
+    { rows: [{ value: "2025-winter" }, { value: "2026-summer" }] },
+    { rows: [{ value: "area" }, { value: "tower" }] },
+    { rows: [{ value: "52ガロン" }, { value: "スプラシューター" }] },
+    { rows: [{ value: "デカライン高架下" }, { value: "ユノハナ大渓谷" }] },
+  ];
+  let index = 0;
+  const database = {
+    async query() {
+      return results[index++];
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(createRequest("GET", "/api/analysis/options"), response, database);
+
+  assert.deepEqual(JSON.parse(response.body), {
+    seasons: ["2025-winter", "2026-summer"],
+    rules: ["area", "tower"],
+    weapons: ["52ガロン", "スプラシューター"],
+    stages: ["デカライン高架下", "ユノハナ大渓谷"],
   });
 });
 

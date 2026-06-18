@@ -3,6 +3,7 @@ import {
   BarChart3,
   ChevronRight,
   Clock3,
+  Database,
   Gamepad2,
   Swords,
 } from "lucide-react";
@@ -10,11 +11,13 @@ import type { LucideIcon } from "lucide-react";
 import { BackfillPage } from "./BackfillPage";
 import { RecordPage } from "./RecordPage";
 import { AnalysisLayout, HistoryPage, SummaryPage, XpPage } from "./AnalysisPages";
+import { DataPage } from "./DataPage";
 
 const primaryNavigation = [
   { to: "/record", label: "試合記録", icon: Swords },
   { to: "/backfill", label: "過去入力", icon: Clock3 },
   { to: "/analysis/summary", label: "分析", icon: BarChart3 },
+  { to: "/data", label: "データ", icon: Database },
 ];
 
 export function App() {
@@ -23,6 +26,7 @@ export function App() {
       <Route element={<AppShell />}>
         <Route path="/record" element={<RecordPage />} />
         <Route path="/backfill" element={<BackfillPage />} />
+        <Route path="/data" element={<DataPage />} />
         <Route path="/analysis" element={<AnalysisLayout />}>
           <Route index element={<Navigate replace to="summary" />} />
           <Route path="summary" element={<SummaryPage />} />

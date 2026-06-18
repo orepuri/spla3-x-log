@@ -9,6 +9,8 @@ test("keeps summary filters in the URL and renders grouped results", async ({ pa
   await expect(page).toHaveURL(/rule=area/);
   await expect.poll(() => api.lastSummaryRule).toBe("area");
   await expect(page.locator(".analysis-breakdown-row strong").filter({ hasText: "デカライン高架下" })).toBeVisible();
+  await expect(page.getByLabel("シーズン").locator('option[value="2025-winter"]')).toHaveCount(1);
+  await expect(page.getByLabel("武器").locator('option[value="custom-weapon"]')).toHaveCount(1);
 
   await page.getByRole("link", { name: "履歴" }).click();
   await expect(page).toHaveURL(/\/analysis\/history\?rule=area/);
@@ -25,10 +27,12 @@ test("pages through history and edits one match", async ({ page }) => {
 
   await page.getByRole("button", { name: "編集" }).first().click();
   const edit = page.locator(".history-edit");
+  await edit.getByLabel("シーズン").selectOption("2025-winter");
   await edit.getByLabel("勝敗").selectOption("lose");
   await edit.getByRole("button", { name: "保存" }).click();
 
   await expect.poll(() => api.matches[15].result).toBe("lose");
+  expect(api.matches[15].season).toBe("2025-winter");
   await expect(page.locator(".history-edit")).toHaveCount(0);
 });
 
@@ -85,6 +89,15 @@ async function mockAnalysisApis(page) {
     if (url.pathname === "/api/preferences") {
       if (method === "PUT") api.preferences = request.postDataJSON();
       return json(route, api.preferences);
+    }
+
+    if (url.pathname === "/api/analysis/options") {
+      return json(route, {
+        seasons: ["2025-winter", "2026-summer"],
+        rules: ["area", "tower"],
+        weapons: ["custom-weapon", "スプラシューター"],
+        stages: ["custom-stage", "デカライン高架下", "ユノハナ大渓谷"],
+      });
     }
 
     if (url.pathname === "/api/analysis/summary") {

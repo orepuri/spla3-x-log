@@ -78,6 +78,7 @@ async function mockRecordApis(page, options = {}) {
 
     if (url.pathname === "/api/settings") {
       if (method === "PUT") api.settings = request.postDataJSON();
+      if (method === "PATCH") api.settings = { ...api.settings, ...request.postDataJSON() };
       return json(route, api.settings);
     }
 

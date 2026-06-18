@@ -79,6 +79,11 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
+  if (url.pathname === "/api/archive") {
+    await handleArchiveRequest(req, res, database);
+    return;
+  }
+
   if (url.pathname === "/api/settings") {
     await handleSettingsRequest(req, res, database);
     return;
@@ -107,6 +112,11 @@ async function handleRequest(req, res, database = pool) {
 
   if (url.pathname === "/api/analysis/current") {
     await handleCurrentAnalysisRequest(req, res, url, database);
+    return;
+  }
+
+  if (url.pathname === "/api/analysis/options") {
+    await handleAnalysisOptionsRequest(req, res, database);
     return;
   }
 
@@ -284,7 +294,61 @@ async function handleSettingsRequest(req, res, database) {
     return;
   }
 
+  if (req.method === "PATCH") {
+    const patch = await readJsonBody(req);
+    if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+      sendJson(res, 400, { error: "Settings patch must be an object" });
+      return;
+    }
+    const result = await database.query(
+      `
+        INSERT INTO app_settings (id, settings, updated_at)
+        VALUES (1, $1, now())
+        ON CONFLICT (id)
+        DO UPDATE SET settings = app_settings.settings || EXCLUDED.settings, updated_at = now()
+        RETURNING settings
+      `,
+      [patch],
+    );
+    sendJson(res, 200, result.rows[0].settings);
+    return;
+  }
+
   sendJson(res, 405, { error: "Method not allowed" });
+}
+
+async function handleArchiveRequest(req, res, database) {
+  if (!requireDatabase(res, database)) return;
+
+  if (req.method === "GET") {
+    sendJson(res, 200, await readState(database));
+    return;
+  }
+
+  if (req.method === "PUT") {
+    const state = await readJsonBody(req);
+    if (!isArchivePayload(state)) {
+      sendJson(res, 400, { error: "Invalid archive" });
+      return;
+    }
+    const normalized = normalizeState(state);
+    await writeState(database, normalized);
+    sendJson(res, 200, await readState(database));
+    return;
+  }
+
+  sendJson(res, 405, { error: "Method not allowed" });
+}
+
+function isArchivePayload(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      (value.settings === null || (typeof value.settings === "object" && !Array.isArray(value.settings))) &&
+      Array.isArray(value.matches) &&
+      Array.isArray(value.xpRecords),
+  );
 }
 
 async function handlePreferencesRequest(req, res, database) {
@@ -601,6 +665,48 @@ async function handleCurrentAnalysisRequest(req, res, url, database) {
   });
 }
 
+async function handleAnalysisOptionsRequest(req, res, database) {
+  if (!requireDatabase(res, database)) return;
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  const [seasonResult, ruleResult, weaponResult, stageResult] = await Promise.all([
+    database.query(
+      `
+        SELECT value
+        FROM (
+          SELECT season AS value FROM matches
+          UNION
+          SELECT season AS value FROM xp_records
+        ) options
+        WHERE value IS NOT NULL AND value <> ''
+        ORDER BY value
+      `,
+    ),
+    database.query(
+      `
+        SELECT value
+        FROM (
+          SELECT rule AS value FROM matches
+          UNION
+          SELECT rule AS value FROM xp_records
+        ) options
+        WHERE value IS NOT NULL AND value <> ''
+        ORDER BY value
+      `,
+    ),
+    database.query("SELECT DISTINCT weapon AS value FROM matches WHERE weapon <> '' ORDER BY value"),
+    database.query("SELECT DISTINCT stage AS value FROM matches WHERE stage <> '' ORDER BY value"),
+  ]);
+  sendJson(res, 200, {
+    seasons: seasonResult.rows.map((row) => row.value),
+    rules: ruleResult.rows.map((row) => row.value),
+    weapons: weaponResult.rows.map((row) => row.value),
+    stages: stageResult.rows.map((row) => row.value),
+  });
+}
+
 async function handleSummaryAnalysisRequest(req, res, url, database) {
   if (!requireDatabase(res, database)) return;
   if (req.method !== "GET") {
@@ -876,6 +982,7 @@ function isReactAppPath(pathname) {
     pathname === "/" ||
     pathname === "/record" ||
     pathname === "/backfill" ||
+    pathname === "/data" ||
     pathname === "/analysis" ||
     pathname.startsWith("/analysis/")
   );

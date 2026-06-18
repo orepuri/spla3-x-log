@@ -8,7 +8,7 @@ import {
   getCurrentAnalysis,
   getLatestMatches,
   getSettings,
-  updateSettings,
+  patchSettings,
 } from "./api";
 import { defaultSettings, rules, seasonName, seasons, stages, weapons } from "./catalog";
 import type { AppSettings, MatchResult, MatchSummary } from "./types";
@@ -43,7 +43,8 @@ export function RecordPage() {
   };
 
   const settingsMutation = useMutation({
-    mutationFn: updateSettings,
+    mutationFn: (input: { key: keyof AppSettings; value: AppSettings[keyof AppSettings] }) =>
+      patchSettings({ [input.key]: input.value }),
     onError: () => {
       setError("設定を保存できません");
       if (settingsQuery.data) setSettings({ ...defaultSettings, ...settingsQuery.data });
@@ -106,7 +107,7 @@ export function RecordPage() {
     const next = { ...settings, [key]: value };
     setSettings(next);
     setFeedback("");
-    settingsMutation.mutate(next);
+    settingsMutation.mutate({ key, value });
   }
 
   function saveXp(event: React.FormEvent) {

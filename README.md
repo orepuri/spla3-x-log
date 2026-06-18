@@ -18,12 +18,14 @@ React版の画面は次のURLで確認できます。
 - `http://127.0.0.1:5173/record`
 - `http://127.0.0.1:5173/backfill`
 - `http://127.0.0.1:5173/analysis/summary`
+- `http://127.0.0.1:5173/data`
 
 移行確認用の旧画面は`http://127.0.0.1:5173/legacy`に残しています。
 
 `/record`では現在設定の保存、設定条件に対応する最新XP・勝率表示、WIN/LOSE、XP登録、最後の試合取り消しを利用できます。
 `/backfill`では記録日時を指定した試合・XP入力と、日時の前後5分調整を利用できます。
 `/analysis`ではURLに保持される分析条件、集計、履歴ページング・編集、サーバーに保存されるXP表示期間を利用できます。
+`/data`ではJSON形式のExportと、件数確認後のImportを利用できます。
 
 フロントエンドだけをViteの開発サーバーで起動する場合は、別ターミナルでNodeサーバーとViteを起動します。
 
@@ -36,8 +38,11 @@ React版では、旧`/api/state`と同じデータを個別APIから操作でき
 
 - `GET /api/settings`
 - `PUT /api/settings`
+- `PATCH /api/settings`
 - `GET /api/preferences`
 - `PUT /api/preferences`
+- `GET /api/archive`
+- `PUT /api/archive`
 - `GET /api/matches`
 - `POST /api/matches`
 - `PATCH /api/matches/:id`
@@ -45,6 +50,7 @@ React版では、旧`/api/state`と同じデータを個別APIから操作でき
 - `GET /api/xp-records`
 - `POST /api/xp-records`
 - `GET /api/analysis/current`
+- `GET /api/analysis/options`
 - `GET /api/analysis/summary`
 
 `GET /api/matches`と`GET /api/xp-records`は`limit`と`cursor`によるカーソルページングに対応します。

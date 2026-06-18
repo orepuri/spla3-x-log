@@ -14,6 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import { NavLink, Outlet, useOutletContext, useSearchParams } from "react-router-dom";
 import {
   getMatches,
+  getAnalysisOptions,
   getPreferences,
   getSummaryAnalysis,
   getXpRecords,
@@ -23,6 +24,7 @@ import {
 import { rules, seasonName, seasons, stages, weapons } from "./catalog";
 import type {
   AnalysisFilters,
+  AnalysisOptions,
   AnalysisPreferences,
   BreakdownItem,
   Match,
@@ -54,6 +56,7 @@ const analysisNavigation = [
 
 type AnalysisContext = {
   filters: AnalysisFilters;
+  options: AnalysisOptions;
   preferences: AnalysisPreferences;
   preferencesLoading: boolean;
   setFilter: (key: keyof AnalysisFilters, value: string) => void;
@@ -63,8 +66,10 @@ type AnalysisContext = {
 export function AnalysisLayout() {
   const [searchParams, setSearchParams] = useSearchParams();
   const preferencesQuery = useQuery({ queryKey: ["preferences"], queryFn: getPreferences });
+  const optionsQuery = useQuery({ queryKey: ["analysis-options"], queryFn: getAnalysisOptions });
   const queryClient = useQueryClient();
   const preferences = { ...defaultPreferences, ...preferencesQuery.data };
+  const options = mergeOptions(optionsQuery.data);
   const filters = {
     season: searchParams.get("season") || defaultFilters.season,
     rule: searchParams.get("rule") || defaultFilters.rule,
@@ -110,6 +115,7 @@ export function AnalysisLayout() {
       <Outlet
         context={{
           filters,
+          options,
           preferences,
           preferencesLoading: preferencesQuery.isLoading,
           savePreferences,
@@ -121,7 +127,7 @@ export function AnalysisLayout() {
 }
 
 export function SummaryPage() {
-  const { filters, setFilter } = useAnalysisContext();
+  const { filters, options, setFilter } = useAnalysisContext();
   const summaryQuery = useQuery({
     queryFn: () => getSummaryAnalysis(filters),
     queryKey: ["analysis-summary", filters],
@@ -131,7 +137,7 @@ export function SummaryPage() {
   return (
     <section className="surface analysis-surface">
       <SectionHeading icon={LayoutDashboard} title="集計" />
-      <AnalysisFilters filters={filters} setFilter={setFilter} showTime />
+      <AnalysisFilters filters={filters} options={options} setFilter={setFilter} showTime />
       {summaryQuery.isLoading ? (
         <Loading />
       ) : summaryQuery.isError ? (
@@ -158,7 +164,7 @@ export function SummaryPage() {
 }
 
 export function HistoryPage() {
-  const { filters, preferences, preferencesLoading, savePreferences, setFilter } = useAnalysisContext();
+  const { filters, options, preferences, preferencesLoading, savePreferences, setFilter } = useAnalysisContext();
   const queryClient = useQueryClient();
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
   const [pageIndex, setPageIndex] = useState(0);
@@ -217,7 +223,7 @@ export function HistoryPage() {
           </select>
         </label>
       </div>
-      <AnalysisFilters filters={filters} setFilter={setFilter} showTime />
+      <AnalysisFilters filters={filters} options={options} setFilter={setFilter} showTime />
       {matchesQuery.isLoading || preferencesLoading ? (
         <Loading />
       ) : matchesQuery.isError ? (
@@ -233,6 +239,7 @@ export function HistoryPage() {
                   busy={editMutation.isPending}
                   key={match.id}
                   match={editing}
+                  options={options}
                   onCancel={() => setEditing(null)}
                   onChange={setEditing}
                   onSave={() => editMutation.mutate(editing)}
@@ -260,7 +267,7 @@ export function HistoryPage() {
 }
 
 export function XpPage() {
-  const { filters, preferences, preferencesLoading, savePreferences, setFilter } = useAnalysisContext();
+  const { filters, options, preferences, preferencesLoading, savePreferences, setFilter } = useAnalysisContext();
   const dateRange = xpDateRange(preferences);
   const xpQuery = useQuery({
     enabled: !preferencesLoading,
@@ -304,7 +311,7 @@ export function XpPage() {
   return (
     <section className="surface analysis-surface">
       <SectionHeading icon={BarChart3} title="XP推移" />
-      <AnalysisFilters filters={filters} setFilter={setFilter} xpOnly />
+      <AnalysisFilters filters={filters} options={options} setFilter={setFilter} xpOnly />
       <div className="xp-period-controls">
         <label className="preview-field">
           <span>期間</span>
@@ -357,11 +364,13 @@ export function XpPage() {
 
 function AnalysisFilters({
   filters,
+  options,
   setFilter,
   showTime = false,
   xpOnly = false,
 }: {
   filters: AnalysisFilters;
+  options: AnalysisOptions;
   setFilter: (key: keyof AnalysisFilters, value: string) => void;
   showTime?: boolean;
   xpOnly?: boolean;
@@ -371,13 +380,13 @@ function AnalysisFilters({
       <FilterSelect
         label="シーズン"
         onChange={(value) => setFilter("season", value)}
-        options={[{ label: "すべて", value: "all" }, ...seasons.map((item) => ({ label: item.name, value: item.id }))]}
+        options={[{ label: "すべて", value: "all" }, ...options.seasons.map((item) => ({ label: seasonName(item), value: item }))]}
         value={filters.season}
       />
       <FilterSelect
         label="ルール"
         onChange={(value) => setFilter("rule", value)}
-        options={[{ label: "すべて", value: "all" }, ...rules.map((item) => ({ label: item.name, value: item.id }))]}
+        options={[{ label: "すべて", value: "all" }, ...options.rules.map((item) => ({ label: ruleName(item), value: item }))]}
         value={filters.rule}
       />
       {!xpOnly ? (
@@ -385,13 +394,13 @@ function AnalysisFilters({
           <FilterSelect
             label="武器"
             onChange={(value) => setFilter("weapon", value)}
-            options={[{ label: "すべて", value: "all" }, ...weapons.map((item) => ({ label: item, value: item }))]}
+            options={[{ label: "すべて", value: "all" }, ...options.weapons.map((item) => ({ label: item, value: item }))]}
             value={filters.weapon}
           />
           <FilterSelect
             label="ステージ"
             onChange={(value) => setFilter("stage", value)}
-            options={[{ label: "すべて", value: "all" }, ...stages.map((item) => ({ label: item, value: item }))]}
+            options={[{ label: "すべて", value: "all" }, ...options.stages.map((item) => ({ label: item, value: item }))]}
             value={filters.stage}
           />
           {showTime ? (
@@ -516,12 +525,14 @@ function HistoryRow({ match, onEdit }: { match: Match; onEdit: () => void }) {
 function HistoryEdit({
   busy,
   match,
+  options,
   onCancel,
   onChange,
   onSave,
 }: {
   busy: boolean;
   match: Match;
+  options: AnalysisOptions;
   onCancel: () => void;
   onChange: (match: Match) => void;
   onSave: () => void;
@@ -529,12 +540,13 @@ function HistoryEdit({
   return (
     <div className="history-edit">
       <div className="history-edit-fields">
-        <FilterSelect label="ルール" onChange={(rule) => onChange({ ...match, rule: rule as RuleId })} options={rules.map((item) => ({ label: item.name, value: item.id }))} value={match.rule} />
+        <FilterSelect label="シーズン" onChange={(season) => onChange({ ...match, season })} options={options.seasons.map((item) => ({ label: seasonName(item), value: item }))} value={match.season} />
+        <FilterSelect label="ルール" onChange={(rule) => onChange({ ...match, rule: rule as RuleId })} options={options.rules.map((item) => ({ label: ruleName(item), value: item }))} value={match.rule} />
         <label className="preview-field">
           <span>武器</span>
           <input onChange={(event) => onChange({ ...match, weapon: event.target.value })} value={match.weapon} />
         </label>
-        <FilterSelect label="ステージ" onChange={(stage) => onChange({ ...match, stage })} options={stages.map((item) => ({ label: item, value: item }))} value={match.stage} />
+        <FilterSelect label="ステージ" onChange={(stage) => onChange({ ...match, stage })} options={options.stages.map((item) => ({ label: item, value: item }))} value={match.stage} />
         <FilterSelect
           label="勝敗"
           onChange={(result) => onChange({ ...match, result: result as MatchResult })}
@@ -616,6 +628,19 @@ function xpDateRange(preferences: AnalysisPreferences) {
 
 function useAnalysisContext() {
   return useOutletContext<AnalysisContext>();
+}
+
+function mergeOptions(remote?: Partial<AnalysisOptions>): AnalysisOptions {
+  return {
+    seasons: unique([...seasons.map((item) => item.id), ...(remote?.seasons || [])]),
+    rules: unique([...rules.map((item) => item.id), ...(remote?.rules || [])]),
+    weapons: unique([...weapons, ...(remote?.weapons || [])]),
+    stages: unique([...stages, ...(remote?.stages || [])]),
+  };
+}
+
+function unique(values: string[]) {
+  return Array.from(new Set(values));
 }
 
 function ruleName(id: string) {

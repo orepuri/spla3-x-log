@@ -1,6 +1,8 @@
 import type {
   AnalysisFilters,
+  AnalysisOptions,
   AnalysisPreferences,
+  AppArchive,
   AppSettings,
   CurrentAnalysis,
   Match,
@@ -17,6 +19,26 @@ export async function getSettings(): Promise<AppSettings | null> {
 export async function updateSettings(settings: AppSettings): Promise<AppSettings> {
   return request<AppSettings>("/api/settings", {
     body: JSON.stringify(settings),
+    headers: { "content-type": "application/json" },
+    method: "PUT",
+  });
+}
+
+export async function patchSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+  return request<AppSettings>("/api/settings", {
+    body: JSON.stringify(patch),
+    headers: { "content-type": "application/json" },
+    method: "PATCH",
+  });
+}
+
+export async function getArchive(): Promise<AppArchive> {
+  return request<AppArchive>("/api/archive");
+}
+
+export async function importArchive(archive: AppArchive): Promise<AppArchive> {
+  return request<AppArchive>("/api/archive", {
+    body: JSON.stringify(archive),
     headers: { "content-type": "application/json" },
     method: "PUT",
   });
@@ -120,6 +142,10 @@ export async function getXpRecords(options: {
 
 export async function getSummaryAnalysis(filters: AnalysisFilters): Promise<SummaryAnalysis> {
   return request<SummaryAnalysis>(`/api/analysis/summary?${filterParams(filters)}`);
+}
+
+export async function getAnalysisOptions(): Promise<AnalysisOptions> {
+  return request<AnalysisOptions>("/api/analysis/options");
 }
 
 function filterParams(filters: AnalysisFilters) {

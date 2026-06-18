@@ -13,7 +13,7 @@ for (const viewport of viewports) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await mockResponsiveApis(page);
 
-    for (const route of ["/record", "/backfill", "/analysis/summary?rule=area"]) {
+    for (const route of ["/record", "/backfill", "/analysis/summary?rule=area", "/data"]) {
       await page.goto(route);
       await expect(page.locator("h1")).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

@@ -73,3 +73,16 @@ export interface AnalysisPreferences {
   xpEnd: string;
   historyPageSize: number;
 }
+
+export interface AppArchive {
+  settings: AppSettings | null;
+  matches: Match[];
+  xpRecords: XpRecord[];
+}
+
+export interface AnalysisOptions {
+  seasons: string[];
+  rules: string[];
+  weapons: string[];
+  stages: string[];
+}
