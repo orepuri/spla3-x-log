@@ -36,7 +36,9 @@ test("iPad landscape keeps record actions in the initial viewport", async ({ pag
   await mockResponsiveApis(page);
   await page.goto("/record");
 
-  const resultBox = await page.locator(".result-surface").boundingBox();
+  const resultSurface = page.locator(".result-surface");
+  await expect(resultSurface).toBeVisible();
+  const resultBox = await resultSurface.boundingBox();
   expect(resultBox.y).toBeLessThan(768);
   expect(resultBox.y + resultBox.height).toBeLessThanOrEqual(768);
 });
@@ -83,6 +85,13 @@ async function mockResponsiveApis(page) {
           { stage: "デカライン高架下", ...summarize(matches.filter((item) => item.stage === "デカライン高架下")) },
           { stage: "ユノハナ大渓谷", ...summarize(matches.filter((item) => item.stage === "ユノハナ大渓谷")) },
         ],
+      });
+    }
+    if (url.pathname === "/api/xp-state") {
+      return json(route, {
+        current: { wins: 0, losses: 0 },
+        latestXp: null,
+        pending: [],
       });
     }
     if (url.pathname === "/api/analysis/summary") {

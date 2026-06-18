@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { Readable } = require("node:stream");
 const test = require("node:test");
-const { handleRequest, normalizeState } = require("../server");
+const { computeXpState, handleRequest, normalizeState } = require("../server");
 
 test("health endpoint returns JSON with database status", async () => {
   const response = createResponse();
@@ -363,6 +363,56 @@ test("current analysis API returns latest XP and win rates for selected stages",
   });
 });
 
+test("XP state keeps completed sets pending and estimates from matching historical scores", () => {
+  const matches = [
+    ...scoredMatches("old", "2025-winter", ["win", "lose", "win", "win"], "2026-01-01T00:00:00.000Z"),
+    ...scoredMatches("new-a", "2026-summer", ["win", "lose", "win", "win"], "2026-06-18T00:00:00.000Z"),
+    ...scoredMatches("new-b", "2026-summer", ["lose", "lose", "lose"], "2026-06-18T01:00:00.000Z"),
+    {
+      ...matchRow("current-1", "2026-06-18T02:00:00.000Z"),
+      season: "2026-summer",
+      result: "win",
+      recordedAt: "2026-06-18T02:00:00.000Z",
+    },
+  ].map(normalizeTestMatch);
+  const xpRecords = [
+    xpRecord("old-base", "2025-winter", 2100, "2025-12-31T23:59:00.000Z"),
+    xpRecord("old-complete", "2025-winter", 2124.6, "2026-01-01T00:03:00.000Z", "old-4"),
+    xpRecord("new-base", "2026-summer", 2200, "2026-06-17T23:59:00.000Z"),
+  ];
+
+  const state = computeXpState(matches, xpRecords, "2026-summer", "area");
+
+  assert.deepEqual(state.current, { wins: 1, losses: 0 });
+  assert.equal(state.pending.length, 2);
+  assert.deepEqual(
+    { wins: state.pending[0].wins, losses: state.pending[0].losses, estimatedXp: state.pending[0].estimatedXp },
+    { wins: 3, losses: 1, estimatedXp: 2224.6 },
+  );
+  assert.equal(state.pending[1].completedMatchId, "new-b-3");
+});
+
+test("manual XP records do not reset the current set", () => {
+  const matches = scoredMatches(
+    "current",
+    "2026-summer",
+    ["win", "lose"],
+    "2026-06-18T00:00:00.000Z",
+  ).map(normalizeTestMatch);
+  const records = [
+    xpRecord("base", "2026-summer", 2200, "2026-06-17T23:59:00.000Z"),
+    {
+      ...xpRecord("manual", "2026-summer", 2208, "2026-06-18T00:01:30.000Z"),
+      recordType: "manual",
+    },
+  ];
+
+  const state = computeXpState(matches, records, "2026-summer", "area");
+
+  assert.deepEqual(state.current, { wins: 1, losses: 1 });
+  assert.equal(state.latestXp.id, "manual");
+});
+
 test("analysis options API returns distinct values from stored history", async () => {
   const results = [
     { rows: [{ value: "2025-winter" }, { value: "2026-summer" }] },
@@ -446,6 +496,34 @@ function xpRow(id, xp, recordedAt) {
     rule: "area",
     xp,
     recorded_at: new Date(recordedAt),
+  };
+}
+
+function scoredMatches(prefix, season, results, start) {
+  const startTime = new Date(start).getTime();
+  return results.map((result, index) => ({
+    ...matchRow(`${prefix}-${index + 1}`, new Date(startTime + index * 60_000).toISOString()),
+    result,
+    season,
+  }));
+}
+
+function normalizeTestMatch(match) {
+  return {
+    ...match,
+    recordedAt: match.recordedAt || match.recorded_at.toISOString(),
+  };
+}
+
+function xpRecord(id, season, xp, recordedAt, completedMatchId = null) {
+  return {
+    completedMatchId,
+    id,
+    recordType: "completed",
+    recordedAt,
+    rule: "area",
+    season,
+    xp,
   };
 }
 

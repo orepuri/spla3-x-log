@@ -24,7 +24,26 @@ export interface XpRecord {
   season: string;
   rule: RuleId;
   xp: number;
+  completedMatchId: string | null;
+  recordType: "completed" | "manual";
   recordedAt: string;
+}
+
+export interface XpCompletion {
+  completedAt: string;
+  completedMatchId: string;
+  estimatedXp: number | null;
+  losses: number;
+  wins: number;
+}
+
+export interface XpState {
+  current: {
+    losses: number;
+    wins: number;
+  };
+  latestXp: XpRecord | null;
+  pending: XpCompletion[];
 }
 
 export interface MatchSummary {

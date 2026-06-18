@@ -88,6 +88,11 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
+  if (url.pathname === "/api/xp-state") {
+    await handleXpStateRequest(req, res, url, database);
+    return;
+  }
+
   if (url.pathname === "/api/analysis/current") {
     await handleCurrentAnalysisRequest(req, res, url, database);
     return;
@@ -147,13 +152,20 @@ async function migrate() {
       season text,
       rule text NOT NULL,
       xp numeric(6, 1) NOT NULL CHECK (xp >= 0),
+      completed_match_id text,
+      record_type text NOT NULL DEFAULT 'manual' CHECK (record_type IN ('completed', 'manual')),
       recorded_at timestamptz NOT NULL
     );
 
     ALTER TABLE matches ADD COLUMN IF NOT EXISTS season text;
     ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS season text;
+    ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS completed_match_id text;
+    ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS record_type text;
     UPDATE matches SET season = '${defaultSeasonId}' WHERE season IS NULL;
     UPDATE xp_records SET season = '${defaultSeasonId}' WHERE season IS NULL;
+    UPDATE xp_records SET record_type = 'completed' WHERE record_type IS NULL;
+    ALTER TABLE xp_records ALTER COLUMN record_type SET DEFAULT 'manual';
+    ALTER TABLE xp_records ALTER COLUMN record_type SET NOT NULL;
 
     CREATE INDEX IF NOT EXISTS matches_recorded_at_idx ON matches (recorded_at DESC);
     CREATE INDEX IF NOT EXISTS matches_season_idx ON matches (season);
@@ -171,7 +183,7 @@ async function readState(database = pool) {
   const [settingsResult, matchesResult, xpResult] = await Promise.all([
     database.query("SELECT settings FROM app_settings WHERE id = 1"),
     database.query("SELECT id, season, rule, stage, weapon, result, recorded_at FROM matches ORDER BY recorded_at DESC"),
-    database.query("SELECT id, season, rule, xp, recorded_at FROM xp_records ORDER BY recorded_at DESC"),
+    database.query("SELECT id, season, rule, xp, completed_match_id, record_type, recorded_at FROM xp_records ORDER BY recorded_at DESC"),
   ]);
 
   return {
@@ -190,6 +202,8 @@ async function readState(database = pool) {
       season: row.season || defaultSeasonId,
       rule: row.rule,
       xp: Number(row.xp),
+      completedMatchId: row.completed_match_id || null,
+      recordType: row.record_type || "completed",
       recordedAt: row.recorded_at.toISOString(),
     })),
   };
@@ -227,10 +241,10 @@ async function writeState(database, state) {
     for (const record of normalized.xpRecords) {
       await client.query(
         `
-          INSERT INTO xp_records (id, season, rule, xp, recorded_at)
-          VALUES ($1, $2, $3, $4, $5)
+          INSERT INTO xp_records (id, season, rule, xp, completed_match_id, record_type, recorded_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
         `,
-        [record.id, record.season, record.rule, record.xp, record.recordedAt],
+        [record.id, record.season, record.rule, record.xp, record.completedMatchId, record.recordType, record.recordedAt],
       );
     }
 
@@ -541,7 +555,7 @@ async function handleXpRecordsRequest(req, res, url, database) {
     values.push(page.limit + 1);
     const result = await database.query(
       `
-        SELECT id, season, rule, xp, recorded_at
+        SELECT id, season, rule, xp, completed_match_id, record_type, recorded_at
         FROM xp_records
         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
         ORDER BY recorded_at DESC, id DESC
@@ -571,17 +585,64 @@ async function handleXpRecordsRequest(req, res, url, database) {
     }
     const result = await database.query(
       `
-        INSERT INTO xp_records (id, season, rule, xp, recorded_at)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, season, rule, xp, recorded_at
+        INSERT INTO xp_records (id, season, rule, xp, completed_match_id, record_type, recorded_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, season, rule, xp, completed_match_id, record_type, recorded_at
       `,
-      [record.id, record.season, record.rule, record.xp, record.recordedAt],
+      [record.id, record.season, record.rule, record.xp, record.completedMatchId, record.recordType, record.recordedAt],
     );
     sendJson(res, 201, xpRecordFromRow(result.rows[0]));
     return;
   }
 
   sendJson(res, 405, { error: "Method not allowed" });
+}
+
+async function handleXpStateRequest(req, res, url, database) {
+  if (!requireDatabase(res, database)) return;
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const season = url.searchParams.get("season");
+  const rule = url.searchParams.get("rule");
+  if (!season || !rule) {
+    sendJson(res, 400, { error: "season and rule are required" });
+    return;
+  }
+
+  const [matchesResult, xpResult] = await Promise.all([
+    database.query(
+      `
+        SELECT id, season, rule, stage, weapon, result, recorded_at
+        FROM matches
+        WHERE rule = $1
+        ORDER BY recorded_at ASC, id ASC
+      `,
+      [rule],
+    ),
+    database.query(
+      `
+        SELECT id, season, rule, xp, completed_match_id, record_type, recorded_at
+        FROM xp_records
+        WHERE rule = $1
+        ORDER BY recorded_at ASC, id ASC
+      `,
+      [rule],
+    ),
+  ]);
+
+  sendJson(
+    res,
+    200,
+    computeXpState(
+      matchesResult.rows.map(matchFromRow),
+      xpResult.rows.map(xpRecordFromRow),
+      season,
+      rule,
+    ),
+  );
 }
 
 async function handleCurrentAnalysisRequest(req, res, url, database) {
@@ -603,7 +664,7 @@ async function handleCurrentAnalysisRequest(req, res, url, database) {
   const [xpResult, weaponResult, stageResult] = await Promise.all([
     database.query(
       `
-        SELECT id, season, rule, xp, recorded_at
+        SELECT id, season, rule, xp, completed_match_id, record_type, recorded_at
         FROM xp_records
         WHERE season = $1 AND rule = $2
         ORDER BY recorded_at DESC, id DESC
@@ -844,8 +905,121 @@ function xpRecordFromRow(row) {
     season: row.season || defaultSeasonId,
     rule: row.rule,
     xp: Number(row.xp),
+    completedMatchId: row.completed_match_id || null,
+    recordType: row.record_type || "completed",
     recordedAt: toIsoString(row.recorded_at),
   };
+}
+
+function computeXpState(matches, xpRecords, selectedSeason, selectedRule) {
+  const ruleMatches = matches
+    .filter((match) => match.rule === selectedRule)
+    .sort(compareRecordedAt);
+  const ruleRecords = xpRecords
+    .filter((record) => record.rule === selectedRule)
+    .sort(compareRecordedAt);
+  const matchesBySeason = new Map();
+  for (const match of ruleMatches) {
+    const items = matchesBySeason.get(match.season) || [];
+    items.push(match);
+    matchesBySeason.set(match.season, items);
+  }
+
+  const completedSegments = [];
+  const completedBySeason = new Map();
+  for (const record of ruleRecords.filter((item) => item.recordType === "completed")) {
+    const seasonMatches = matchesBySeason.get(record.season) || [];
+    const boundaryIndex = completedBoundaryIndex(record, seasonMatches);
+    if (record.completedMatchId && boundaryIndex < 0) continue;
+    const previous = completedBySeason.get(record.season) || null;
+    const startIndex = previous ? previous.boundaryIndex + 1 : 0;
+    const segmentMatches = seasonMatches.slice(startIndex, boundaryIndex + 1);
+    const score = scoreMatches(segmentMatches);
+    if (previous && isCompletedScore(score)) {
+      completedSegments.push({
+        delta: record.xp - previous.record.xp,
+        losses: score.losses,
+        outcome: score.wins === 3 ? "win" : "lose",
+        wins: score.wins,
+      });
+    }
+    completedBySeason.set(record.season, { boundaryIndex, record });
+  }
+
+  const selectedMatches = matchesBySeason.get(selectedSeason) || [];
+  const selectedRecords = ruleRecords.filter((record) => record.season === selectedSeason);
+  const latestCompleted = [...selectedRecords]
+    .filter((record) => record.recordType === "completed")
+    .map((record) => ({ boundaryIndex: completedBoundaryIndex(record, selectedMatches), record }))
+    .filter((item) => !item.record.completedMatchId || item.boundaryIndex >= 0)
+    .sort((left, right) => left.boundaryIndex - right.boundaryIndex)
+    .at(-1);
+  const unmatched = selectedMatches.slice((latestCompleted?.boundaryIndex ?? -1) + 1);
+  const pending = [];
+  let currentMatches = [];
+
+  for (const match of unmatched) {
+    currentMatches.push(match);
+    const score = scoreMatches(currentMatches);
+    if (!isCompletedScore(score)) continue;
+    const exactDeltas = completedSegments
+      .filter((segment) => segment.wins === score.wins && segment.losses === score.losses)
+      .map((segment) => segment.delta);
+    const outcome = score.wins === 3 ? "win" : "lose";
+    const fallbackDeltas = completedSegments
+      .filter((segment) => segment.outcome === outcome)
+      .map((segment) => segment.delta);
+    const delta = median(exactDeltas.length ? exactDeltas : fallbackDeltas);
+    pending.push({
+      completedAt: match.recordedAt,
+      completedMatchId: match.id,
+      estimatedXp: delta === null || !latestCompleted ? null : roundXp(latestCompleted.record.xp + delta),
+      losses: score.losses,
+      wins: score.wins,
+    });
+    currentMatches = [];
+  }
+
+  return {
+    current: scoreMatches(currentMatches),
+    latestXp: [...selectedRecords].sort(compareRecordedAt).at(-1) || null,
+    pending,
+  };
+}
+
+function completedBoundaryIndex(record, matches) {
+  if (record.completedMatchId) return matches.findIndex((match) => match.id === record.completedMatchId);
+  const recordedAt = new Date(record.recordedAt).getTime();
+  let boundaryIndex = -1;
+  matches.forEach((match, index) => {
+    if (new Date(match.recordedAt).getTime() <= recordedAt) boundaryIndex = index;
+  });
+  return boundaryIndex;
+}
+
+function compareRecordedAt(left, right) {
+  const difference = new Date(left.recordedAt).getTime() - new Date(right.recordedAt).getTime();
+  return difference || String(left.id).localeCompare(String(right.id));
+}
+
+function scoreMatches(matches) {
+  const wins = matches.filter((match) => match.result === "win").length;
+  return { wins, losses: matches.length - wins };
+}
+
+function isCompletedScore(score) {
+  return score.wins === 3 || score.losses === 3;
+}
+
+function median(values) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function roundXp(value) {
+  return Math.round(value * 10) / 10;
 }
 
 function toIsoString(value) {
@@ -884,6 +1058,8 @@ function normalizeXpRecord(record) {
     season: String(record.season || defaultSeasonId),
     rule: String(record.rule),
     xp,
+    completedMatchId: record.completedMatchId ? String(record.completedMatchId) : null,
+    recordType: record.recordType === "manual" ? "manual" : "completed",
     recordedAt: validDate(record.recordedAt),
   };
 }
@@ -953,6 +1129,7 @@ function sendJson(res, status, payload) {
 }
 
 module.exports = {
+  computeXpState,
   handleRequest,
   normalizeState,
   readJsonBody,

@@ -395,6 +395,52 @@ input {
   margin-top: 12px;
 }
 
+.xp-progress {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.xp-current,
+.xp-pending {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft);
+  padding: 10px 12px;
+}
+
+.xp-current {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.xp-current strong,
+.xp-pending strong {
+  color: var(--ink);
+}
+
+.xp-pending {
+  display: grid;
+  gap: 6px;
+  border-color: #e2d7a2;
+  background: #fffbea;
+}
+
+.xp-pending-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.xp-pending-row em {
+  color: #786714;
+  font-style: normal;
+  font-weight: 800;
+}
+
 .xp-entry label {
   display: grid;
   gap: 5px;
@@ -1162,6 +1208,13 @@ input {
 
   .xp-entry {
     grid-template-columns: 1fr auto;
+  }
+
+  .xp-current,
+  .xp-pending-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 
   .stage-stat {

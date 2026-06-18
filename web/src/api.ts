@@ -10,6 +10,7 @@ import type {
   PageResult,
   SummaryAnalysis,
   XpRecord,
+  XpState,
 } from "./types";
 
 export async function getSettings(): Promise<AppSettings | null> {
@@ -113,6 +114,8 @@ export async function createXpRecord(input: {
   season: string;
   rule: string;
   xp: number;
+  completedMatchId?: string | null;
+  recordType?: "completed" | "manual";
   recordedAt?: string;
 }): Promise<XpRecord> {
   return request<XpRecord>("/api/xp-records", {
@@ -120,6 +123,11 @@ export async function createXpRecord(input: {
     headers: { "content-type": "application/json" },
     method: "POST",
   });
+}
+
+export async function getXpState(season: string, rule: string): Promise<XpState> {
+  const params = new URLSearchParams({ rule, season });
+  return request<XpState>(`/api/xp-state?${params}`);
 }
 
 export async function getXpRecords(options: {

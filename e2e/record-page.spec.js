@@ -19,6 +19,7 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   await expect(page.getByText("WINを保存しました")).toBeVisible();
 
   await page.getByLabel("現在XP").fill("2200.5");
+  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "XP保存" }).click();
   await expect.poll(() => api.xpRecords[0].xp).toBe(2200.5);
   await expect(page.getByText("2200.5")).toBeVisible();
@@ -44,6 +45,25 @@ test("disables result actions while a match is being saved", async ({ page }) =>
 
   releaseRequest();
   await expect(page.getByText("WINを保存しました")).toBeVisible();
+});
+
+test("prefills estimated XP when a set completes and links it to the completion match", async ({ page }) => {
+  const api = await mockRecordApis(page);
+  api.matches = [
+    match("match-2", "ユノハナ大渓谷", "win", "2026-06-17T05:00:00.000Z"),
+    match("match-1", "ユノハナ大渓谷", "win", "2026-06-17T04:00:00.000Z"),
+  ];
+  api.xpRecords[0].recordType = "completed";
+
+  await page.goto("/record");
+  await page.getByRole("button", { name: "ユノハナ大渓谷 WIN" }).click();
+
+  await expect(page.getByText("未入力のXPがあります")).toBeVisible();
+  await expect(page.getByLabel("確定XP")).toHaveValue("2175.1");
+  await page.getByRole("button", { name: "確定XPを保存" }).click();
+
+  await expect.poll(() => api.xpRecords[0].recordType).toBe("completed");
+  expect(api.xpRecords[0].completedMatchId).toBe("match-new-1");
 });
 
 async function mockRecordApis(page, options = {}) {
@@ -85,6 +105,10 @@ async function mockRecordApis(page, options = {}) {
     if (url.pathname === "/api/analysis/current") {
       const stageNames = url.searchParams.getAll("stage");
       return json(route, currentAnalysis(api, stageNames));
+    }
+
+    if (url.pathname === "/api/xp-state") {
+      return json(route, xpState(api));
     }
 
     if (url.pathname === "/api/matches" && method === "GET") {
@@ -143,6 +167,37 @@ function currentAnalysis(api, stageNames) {
       stage,
       ...summary(relevant.filter((item) => item.stage === stage)),
     })),
+  };
+}
+
+function xpState(api) {
+  const base = api.xpRecords.find(
+    (item) => item.season === api.settings.season && item.rule === api.settings.rule && item.recordType !== "manual",
+  );
+  const relevant = api.matches
+    .filter((item) => item.season === api.settings.season && item.rule === api.settings.rule)
+    .filter((item) => !base || new Date(item.recordedAt) > new Date(base.recordedAt))
+    .sort((left, right) => new Date(left.recordedAt) - new Date(right.recordedAt));
+  const pending = [];
+  let current = [];
+  for (const item of relevant) {
+    current.push(item);
+    const score = summary(current);
+    if (score.wins !== 3 && score.losses !== 3) continue;
+    pending.push({
+      completedAt: item.recordedAt,
+      completedMatchId: item.id,
+      estimatedXp: base ? base.xp + 24.6 : null,
+      losses: score.losses,
+      wins: score.wins,
+    });
+    current = [];
+  }
+  const score = summary(current);
+  return {
+    current: { wins: score.wins, losses: score.losses },
+    latestXp: api.xpRecords[0] || null,
+    pending,
   };
 }
 

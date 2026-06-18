@@ -54,6 +54,7 @@ export function BackfillPage() {
   const xpMutation = useMutation({
     mutationFn: (xp: number) =>
       createXpRecord({
+        recordType: "manual",
         rule: xpForm.rule,
         season: xpForm.season,
         xp,

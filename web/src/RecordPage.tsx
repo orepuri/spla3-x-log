@@ -8,6 +8,7 @@ import {
   getCurrentAnalysis,
   getLatestMatches,
   getSettings,
+  getXpState,
   patchSettings,
 } from "./api";
 import { defaultSettings, rules, seasonName, seasons, stages, weapons } from "./catalog";
@@ -34,11 +35,23 @@ export function RecordPage() {
     queryFn: () => getLatestMatches(1),
     queryKey: ["matches", "latest"],
   });
+  const xpStateQuery = useQuery({
+    enabled: Boolean(settings.season && settings.rule),
+    queryFn: () => getXpState(settings.season, settings.rule),
+    queryKey: ["xp-state", settings.season, settings.rule],
+  });
+  const pendingCompletion = xpStateQuery.data?.pending[0] || null;
+
+  useEffect(() => {
+    if (!pendingCompletion?.estimatedXp) return;
+    setXp(pendingCompletion.estimatedXp.toFixed(1));
+  }, [pendingCompletion?.completedMatchId, pendingCompletion?.estimatedXp]);
 
   const refreshRecordData = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["current-analysis"] }),
       queryClient.invalidateQueries({ queryKey: ["matches"] }),
+      queryClient.invalidateQueries({ queryKey: ["xp-state"] }),
     ]);
   };
 
@@ -72,11 +85,14 @@ export function RecordPage() {
     },
   });
   const xpMutation = useMutation({
-    mutationFn: (value: number) =>
+    mutationFn: (input: { value: number; recordType: "completed" | "manual" }) =>
       createXpRecord({
+        completedMatchId: input.recordType === "completed" ? pendingCompletion?.completedMatchId : null,
+        recordedAt: input.recordType === "completed" ? pendingCompletion?.completedAt : undefined,
+        recordType: input.recordType,
         rule: settings.rule,
         season: settings.season,
-        xp: value,
+        xp: input.value,
       }),
     onError: () => setError("XPを保存できません"),
     onSuccess: async () => {
@@ -117,7 +133,21 @@ export function RecordPage() {
       setError("XPを入力してください");
       return;
     }
-    xpMutation.mutate(value);
+    if (pendingCompletion) {
+      xpMutation.mutate({ recordType: "completed", value });
+      return;
+    }
+    const current = xpStateQuery.data?.current;
+    if (
+      current &&
+      current.wins + current.losses > 0 &&
+      !window.confirm(
+        `現在は${current.wins}勝${current.losses}敗です。\nこのXPを現在地点の手動記録として保存しますか？\n勝敗カウントはリセットされません。`,
+      )
+    ) {
+      return;
+    }
+    xpMutation.mutate({ recordType: "manual", value });
   }
 
   if (settingsQuery.isLoading) {
@@ -230,9 +260,14 @@ export function RecordPage() {
             <ResultButton disabled={isBusy} onClick={() => matchMutation.mutate({ stage: settings.stageB, result: "win" })} result="WIN" stage={settings.stageB} tone="win" />
             <ResultButton disabled={isBusy} onClick={() => matchMutation.mutate({ stage: settings.stageB, result: "lose" })} result="LOSE" stage={settings.stageB} tone="lose" />
           </div>
+          <XpProgress
+            current={xpStateQuery.data?.current}
+            loading={xpStateQuery.isLoading}
+            pending={xpStateQuery.data?.pending || []}
+          />
           <form className="xp-entry" onSubmit={saveXp}>
             <label>
-              <span>現在XP</span>
+              <span>{pendingCompletion ? "確定XP" : "現在XP"}</span>
               <input
                 disabled={isBusy}
                 inputMode="decimal"
@@ -246,10 +281,66 @@ export function RecordPage() {
             </label>
             <button className="primary-button" disabled={isBusy || !xp} type="submit">
               <Save aria-hidden="true" size={16} />
-              XP保存
+              {pendingCompletion ? "確定XPを保存" : "XP保存"}
             </button>
           </form>
         </section>
+      </div>
+    </div>
+  );
+}
+
+function XpProgress({
+  current,
+  loading,
+  pending,
+}: {
+  current?: { wins: number; losses: number };
+  loading: boolean;
+  pending: Array<{
+    completedAt: string;
+    completedMatchId: string;
+    estimatedXp: number | null;
+    losses: number;
+    wins: number;
+  }>;
+}) {
+  if (loading) return <div className="xp-progress">XPセットを読み込んでいます</div>;
+  const wins = current?.wins || 0;
+  const losses = current?.losses || 0;
+  const next = [
+    wins === 2 ? "次のWINでXP確定" : "",
+    losses === 2 ? "次のLOSEでXP確定" : "",
+  ]
+    .filter(Boolean)
+    .join(" / ");
+
+  return (
+    <div className="xp-progress">
+      {pending.length ? (
+        <div className="xp-pending">
+          <strong>未入力のXPがあります</strong>
+          {pending.map((completion, index) => (
+            <div className="xp-pending-row" key={completion.completedMatchId}>
+              <span>
+                {formatDateTime(completion.completedAt)}　{completion.wins}勝{completion.losses}敗
+              </span>
+              {index === 0 ? (
+                <em>
+                  {completion.estimatedXp === null
+                    ? "推定データ不足"
+                    : `推定XP ${completion.estimatedXp.toFixed(1)}`}
+                </em>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className="xp-current">
+        <strong>
+          現在 {wins}勝{losses}敗
+        </strong>
+        <span>{next || "3勝または3敗でXP確定"}</span>
       </div>
     </div>
   );
