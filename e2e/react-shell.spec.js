@@ -12,7 +12,7 @@ test("opens React routes directly and navigates between workflows", async ({ pag
   await expect(page.getByRole("heading", { level: 1, name: "過去データ入力" })).toBeVisible();
 
   await page.getByRole("link", { name: "分析" }).click();
-  await expect(page).toHaveURL(/\/analysis\/summary$/);
+  await expect(page).toHaveURL(/\/analysis\/xp$/);
   await page.getByRole("link", { name: "履歴" }).click();
   await expect(page).toHaveURL(/\/analysis\/history$/);
   await expect(page.getByRole("heading", { level: 2, name: "履歴" })).toBeVisible();
@@ -37,6 +37,12 @@ test("uses the React record page as the root application", async ({ page }) => {
         latestXp: null,
         weapon: { wins: 0, losses: 0, total: 0, winRate: null },
         stages: [],
+      };
+    } else if (pathname === "/api/xp-state") {
+      body = {
+        current: { wins: 0, losses: 0 },
+        latestXp: null,
+        pending: [],
       };
     }
     return route.fulfill({

@@ -6,8 +6,11 @@ import {
   ChevronRight,
   History,
   LayoutDashboard,
+  Minus,
   Pencil,
   Save,
+  TrendingDown,
+  TrendingUp,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -48,10 +51,12 @@ const defaultPreferences: AnalysisPreferences = {
   historyPageSize: 25,
 };
 
+const xpHistoryPageSize = 15;
+
 const analysisNavigation = [
+  { to: "/analysis/xp", label: "XP", icon: BarChart3 },
   { to: "/analysis/summary", label: "集計", icon: LayoutDashboard },
   { to: "/analysis/history", label: "履歴", icon: History },
-  { to: "/analysis/xp", label: "XP", icon: BarChart3 },
 ];
 
 type AnalysisContext = {
@@ -268,6 +273,7 @@ export function HistoryPage() {
 
 export function XpPage() {
   const { filters, options, preferences, preferencesLoading, savePreferences, setFilter } = useAnalysisContext();
+  const [historyPageIndex, setHistoryPageIndex] = useState(0);
   const dateRange = xpDateRange(preferences);
   const xpQuery = useQuery({
     enabled: !preferencesLoading,
@@ -294,6 +300,20 @@ export function XpPage() {
     queryKey: ["analysis-xp", filters.season, preferences],
   });
   const xpRecords = xpQuery.data?.items;
+  const xpRecordsWithTrend = useMemo(
+    () => xpRecordsWithPrevious(xpRecords || [], xpQuery.data?.baselines || []),
+    [xpRecords, xpQuery.data?.baselines],
+  );
+  const xpHistoryPageCount = Math.max(1, Math.ceil(xpRecordsWithTrend.length / xpHistoryPageSize));
+  const xpHistoryPage = xpRecordsWithTrend.slice(historyPageIndex * xpHistoryPageSize, (historyPageIndex + 1) * xpHistoryPageSize);
+
+  useEffect(() => {
+    setHistoryPageIndex(0);
+  }, [filters.season, preferences.xpPeriod, preferences.xpStart, preferences.xpEnd]);
+
+  useEffect(() => {
+    setHistoryPageIndex((current) => Math.min(current, xpHistoryPageCount - 1));
+  }, [xpHistoryPageCount]);
 
   function updatePeriod(key: keyof AnalysisPreferences, value: string) {
     if (key === "xpPeriod" && value === "custom" && (!preferences.xpStart || !preferences.xpEnd)) {
@@ -356,19 +376,57 @@ export function XpPage() {
             start={dateRange.start}
           />
           {xpRecords?.length ? (
-            <div className="xp-record-list">
-              {xpRecords.map((record) => (
-                <div className="xp-record-row" key={record.id}>
-                  <strong>{record.xp.toFixed(1)}</strong>
-                  <span>{ruleName(record.rule)}</span>
-                  <time>{formatDateTime(record.recordedAt)}</time>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="xp-record-list">
+                {xpHistoryPage.map(({ delta, previous, record }) => (
+                  <XpRecordRow delta={delta} key={record.id} previous={previous} record={record} />
+                ))}
+              </div>
+              <div className="pagination">
+                <button disabled={historyPageIndex === 0} onClick={() => setHistoryPageIndex((current) => current - 1)} type="button">
+                  <ChevronLeft aria-hidden="true" size={16} />
+                  前へ
+                </button>
+                <span>
+                  {historyPageIndex + 1} / {xpHistoryPageCount}ページ
+                </span>
+                <button disabled={historyPageIndex >= xpHistoryPageCount - 1} onClick={() => setHistoryPageIndex((current) => current + 1)} type="button">
+                  次へ
+                  <ChevronRight aria-hidden="true" size={16} />
+                </button>
+              </div>
+            </>
           ) : null}
         </>
       )}
     </section>
+  );
+}
+
+function XpRecordRow({
+  delta,
+  previous,
+  record,
+}: {
+  delta: number | null;
+  previous: XpRecord | null;
+  record: XpRecord;
+}) {
+  const trend = delta === null || Math.abs(delta) < 0.05 ? "same" : delta > 0 ? "up" : "down";
+  const TrendIcon = trend === "up" ? TrendingUp : trend === "down" ? TrendingDown : Minus;
+  const trendLabel = delta === null ? "前回XPなし" : trend === "same" ? "前回から変化なし" : `前回から${trend === "up" ? "アップ" : "ダウン"}`;
+
+  return (
+    <div className="xp-record-row">
+      <strong>{record.xp.toFixed(1)}</strong>
+      <span>{ruleName(record.rule)}</span>
+      <span className={`xp-record-trend ${trend}`} title={previous ? `前回 ${previous.xp.toFixed(1)}` : "前回なし"}>
+        <TrendIcon aria-hidden="true" size={15} />
+        <span className="sr-only">{trendLabel}</span>
+        {delta === null ? "-" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}`}
+      </span>
+      <time>{formatDateTime(record.recordedAt)}</time>
+    </div>
   );
 }
 
@@ -695,6 +753,24 @@ async function loadXpRecords(season: string, start?: string, end?: string) {
     cursor = page.nextCursor || undefined;
   } while (cursor && items.length < 1000);
   return items;
+}
+
+function xpRecordsWithPrevious(records: XpRecord[], baselines: XpRecord[]) {
+  const previousByRule = new Map<RuleId, XpRecord>();
+  baselines.forEach((record) => previousByRule.set(record.rule, record));
+  return records
+    .slice()
+    .sort((left, right) => new Date(left.recordedAt).getTime() - new Date(right.recordedAt).getTime())
+    .map((record) => {
+      const previous = previousByRule.get(record.rule) || null;
+      previousByRule.set(record.rule, record);
+      return {
+        delta: previous ? Math.round((record.xp - previous.xp) * 10) / 10 : null,
+        previous,
+        record,
+      };
+    })
+    .reverse();
 }
 
 function buildDailyXpSeries(records: XpRecord[], baselines: XpRecord[], start?: string, end?: string) {

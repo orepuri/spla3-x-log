@@ -16,6 +16,14 @@ test("keeps summary filters in the URL and renders grouped results", async ({ pa
   await expect(page).toHaveURL(/\/analysis\/history\?rule=area/);
 });
 
+test("opens XP as the default analysis tab", async ({ page }) => {
+  await mockAnalysisApis(page);
+  await page.goto("/analysis");
+
+  await expect(page).toHaveURL(/\/analysis\/xp$/);
+  await expect(page.getByRole("heading", { level: 2, name: "XP推移" })).toBeVisible();
+});
+
 test("pages through history and edits one match", async ({ page }) => {
   const api = await mockAnalysisApis(page);
   await page.goto("/analysis/history");
@@ -50,6 +58,9 @@ test("saves the XP period and keeps it across analysis tabs", async ({ page }) =
   await expect(page.locator(".react-xp-chart .xp-y-tick")).toHaveCount(5);
   await expect(page.locator(".react-xp-chart title").filter({ hasText: "ガチエリア 2137.0" })).toHaveCount(1);
   await expect(page.locator(".react-xp-chart title").filter({ hasText: "2120.0" })).toHaveCount(0);
+  await expect(page.locator(".xp-record-row")).toHaveCount(7);
+  await expect(page.locator(".xp-record-trend.up").first()).toContainText("+37.0");
+  await expect(page.locator(".xp-record-trend.down").first()).toContainText("-7.5");
   expect(api.requestedAllXpRules).toBe(true);
   await page.getByLabel("期間").selectOption("90");
   await expect.poll(() => api.preferences.xpPeriod).toBe("90");
@@ -87,7 +98,7 @@ async function mockAnalysisApis(page) {
         id: `xp-${index}`,
         season: "2026-summer",
         rule: index % 2 ? "tower" : "area",
-        xp: 2100 + index * 18.5,
+        xp: index === 3 ? 2200 : 2100 + index * 18.5,
         recordedAt: new Date(Date.UTC(2026, 5, 13 + index, 12)).toISOString(),
       })),
       {

@@ -15,7 +15,7 @@ import { DataPage } from "./DataPage";
 const primaryNavigation = [
   { to: "/record", label: "試合記録", icon: Swords },
   { to: "/backfill", label: "過去入力", icon: Clock3 },
-  { to: "/analysis/summary", label: "分析", icon: BarChart3 },
+  { to: "/analysis/xp", label: "分析", icon: BarChart3 },
   { to: "/data", label: "データ", icon: Database },
 ];
 
@@ -27,7 +27,7 @@ export function App() {
         <Route path="/backfill" element={<BackfillPage />} />
         <Route path="/data" element={<DataPage />} />
         <Route path="/analysis" element={<AnalysisLayout />}>
-          <Route index element={<Navigate replace to="summary" />} />
+          <Route index element={<Navigate replace to="xp" />} />
           <Route path="summary" element={<SummaryPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="xp" element={<XpPage />} />
