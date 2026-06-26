@@ -522,5 +522,6 @@ function formatDateTime(iso: string) {
     minute: "2-digit",
     month: "2-digit",
     day: "2-digit",
+    timeZone: "Asia/Tokyo",
   }).format(new Date(iso));
 }

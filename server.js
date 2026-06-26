@@ -10,10 +10,15 @@ const port = Number(process.env.PORT || 5173);
 const host = process.env.HOST || "0.0.0.0";
 const databaseUrl = process.env.DATABASE_URL;
 const defaultSeasonId = "2026-summer";
+const appTimeZone = "Asia/Tokyo";
+const recordedHourSql = `EXTRACT(HOUR FROM recorded_at AT TIME ZONE '${appTimeZone}')`;
+
+process.env.TZ = appTimeZone;
 
 const pool = databaseUrl
   ? new Pool({
       connectionString: databaseUrl,
+      options: `-c timezone=${appTimeZone}`,
     })
   : null;
 
@@ -410,7 +415,7 @@ async function handleMatchesRequest(req, res, url, database) {
       const [start, end] = time.split("-").map(Number);
       if (Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end <= 24 && start < end) {
         values.push(start, end);
-        where.push(`EXTRACT(HOUR FROM recorded_at) >= $${values.length - 1} AND EXTRACT(HOUR FROM recorded_at) < $${values.length}`);
+        where.push(`${recordedHourSql} >= $${values.length - 1} AND ${recordedHourSql} < $${values.length}`);
       }
     }
 
@@ -790,9 +795,9 @@ async function handleSummaryAnalysisRequest(req, res, url, database) {
       `
         SELECT
           CASE
-            WHEN EXTRACT(HOUR FROM recorded_at) < 6 THEN '0-6'
-            WHEN EXTRACT(HOUR FROM recorded_at) < 12 THEN '6-12'
-            WHEN EXTRACT(HOUR FROM recorded_at) < 18 THEN '12-18'
+            WHEN ${recordedHourSql} < 6 THEN '0-6'
+            WHEN ${recordedHourSql} < 12 THEN '6-12'
+            WHEN ${recordedHourSql} < 18 THEN '12-18'
             ELSE '18-24'
           END AS name,
           COUNT(*)::int AS total,
@@ -839,7 +844,7 @@ function analysisFilters(url) {
     const [start, end] = time.split("-").map(Number);
     if (Number.isInteger(start) && Number.isInteger(end) && start >= 0 && end <= 24 && start < end) {
       values.push(start, end);
-      where.push(`EXTRACT(HOUR FROM recorded_at) >= $${values.length - 1} AND EXTRACT(HOUR FROM recorded_at) < $${values.length}`);
+      where.push(`${recordedHourSql} >= $${values.length - 1} AND ${recordedHourSql} < $${values.length}`);
     }
   }
   return {

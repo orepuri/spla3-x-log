@@ -195,6 +195,23 @@ test("matches API applies filters and returns a reusable cursor", async () => {
   assert.deepEqual(calls[1].values, ["2026-06-18T02:00:00.000Z", "2", 3]);
 });
 
+test("matches API applies time filters in Asia/Tokyo", async () => {
+  const calls = [];
+  const database = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      return { rows: [matchRow("1", "2026-06-25T17:42:17.647Z")] };
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(createRequest("GET", "/api/matches?time=0-6"), response, database);
+
+  assert.equal(response.status, 200);
+  assert.match(calls[0].sql, /recorded_at AT TIME ZONE 'Asia\/Tokyo'/);
+  assert.deepEqual(calls[0].values, [0, 6, 26]);
+});
+
 test("matches API creates, updates, and deletes one match", async () => {
   const stored = matchRow("match-1", "2026-06-18T01:00:00.000Z");
   const database = {
@@ -488,6 +505,7 @@ test("summary analysis API returns overall and grouped results", async () => {
   const database = {
     async query(sql, values) {
       assert.match(sql, /season = \$1/);
+      if (sql.includes("CASE")) assert.match(sql, /recorded_at AT TIME ZONE 'Asia\/Tokyo'/);
       assert.deepEqual(values, ["2026-summer"]);
       return results[queryIndex++];
     },

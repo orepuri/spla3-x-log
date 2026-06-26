@@ -41,7 +41,7 @@ export function BackfillPage() {
     mutationFn: () =>
       createMatch({
         ...matchForm,
-        recordedAt: new Date(recordedAt).toISOString(),
+        recordedAt: tokyoDateTimeToIso(recordedAt),
       }),
     onError: () => setError("過去の試合を保存できません"),
     onSuccess: async () => {
@@ -58,7 +58,7 @@ export function BackfillPage() {
         rule: xpForm.rule,
         season: xpForm.season,
         xp,
-        recordedAt: new Date(recordedAt).toISOString(),
+        recordedAt: tokyoDateTimeToIso(recordedAt),
       }),
     onError: () => setError("過去のXPを保存できません"),
     onSuccess: async () => {
@@ -297,8 +297,25 @@ function WeaponInput({ disabled, onChange, value }: { disabled: boolean; onChang
 }
 
 function toDateTimeLocal(date: Date) {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+  })
+    .formatToParts(date)
+    .reduce<Record<string, string>>((result, part) => {
+      result[part.type] = part.value;
+      return result;
+    }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function tokyoDateTimeToIso(value: string) {
+  return new Date(`${value}:00+09:00`).toISOString();
 }
 
 async function invalidateData(queryClient: ReturnType<typeof useQueryClient>) {
