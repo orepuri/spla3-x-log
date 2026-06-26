@@ -500,12 +500,12 @@ test("summary analysis API returns overall and grouped results", async () => {
     { rows: [{ name: "area", total: 6, wins: 4 }] },
     { rows: [{ name: "デカライン高架下", total: 4, wins: 3 }] },
     { rows: [{ name: "スプラシューター", total: 6, wins: 4 }] },
-    { rows: [{ name: "18-24", total: 3, wins: 2 }] },
+    { rows: [{ name: "18", total: 3, wins: 2 }] },
   ];
   const database = {
     async query(sql, values) {
       assert.match(sql, /season = \$1/);
-      if (sql.includes("CASE")) assert.match(sql, /recorded_at AT TIME ZONE 'Asia\/Tokyo'/);
+      if (sql.includes("GROUP BY name")) assert.match(sql, /recorded_at AT TIME ZONE 'Asia\/Tokyo'/);
       assert.deepEqual(values, ["2026-summer"]);
       return results[queryIndex++];
     },
@@ -521,7 +521,7 @@ test("summary analysis API returns overall and grouped results", async () => {
   );
   assert.equal(result.breakdown.stage[0].name, "デカライン高架下");
   assert.equal(result.breakdown.stage[0].winRate, 75);
-  assert.equal(result.breakdown.time[0].name, "18-24");
+  assert.equal(result.breakdown.time[0].name, "18");
 });
 
 function createRequest(method, url, body) {

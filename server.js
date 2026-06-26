@@ -794,18 +794,13 @@ async function handleSummaryAnalysisRequest(req, res, url, database) {
     database.query(
       `
         SELECT
-          CASE
-            WHEN ${recordedHourSql} < 6 THEN '0-6'
-            WHEN ${recordedHourSql} < 12 THEN '6-12'
-            WHEN ${recordedHourSql} < 18 THEN '12-18'
-            ELSE '18-24'
-          END AS name,
+          (${recordedHourSql})::int::text AS name,
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE result = 'win')::int AS wins
         FROM matches
         ${whereSql}
-        GROUP BY name
-        ORDER BY name
+        GROUP BY (${recordedHourSql})::int
+        ORDER BY (${recordedHourSql})::int
       `,
       values,
     ),
