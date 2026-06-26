@@ -985,6 +985,10 @@ input {
   padding: 0;
 }
 
+.history-row-actions button.danger {
+  color: #c92a2a;
+}
+
 .history-edit {
   display: grid;
   gap: 10px;

@@ -9,6 +9,7 @@ import {
   Minus,
   Pencil,
   Save,
+  Trash2,
   TrendingDown,
   TrendingUp,
   X,
@@ -18,6 +19,7 @@ import { NavLink, Outlet, useOutletContext, useSearchParams } from "react-router
 import {
   getMatches,
   getAnalysisOptions,
+  deleteMatch,
   getPreferences,
   getSummaryAnalysis,
   getXpRecords,
@@ -198,6 +200,17 @@ export function HistoryPage() {
       ]);
     },
   });
+  const deleteMutation = useMutation({
+    mutationFn: deleteMatch,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["analysis-history"] }),
+        queryClient.invalidateQueries({ queryKey: ["analysis-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["current-analysis"] }),
+        queryClient.invalidateQueries({ queryKey: ["xp-state"] }),
+      ]);
+    },
+  });
 
   function nextPage() {
     if (!matchesQuery.data?.nextCursor) return;
@@ -207,6 +220,11 @@ export function HistoryPage() {
       return next;
     });
     setPageIndex((current) => current + 1);
+  }
+
+  function deleteHistoryMatch(match: Match) {
+    if (!window.confirm(`${formatDateTime(match.recordedAt)}の試合を削除しますか？`)) return;
+    deleteMutation.mutate(match.id);
   }
 
   return (
@@ -250,7 +268,13 @@ export function HistoryPage() {
                   onSave={() => editMutation.mutate(editing)}
                 />
               ) : (
-                <HistoryRow key={match.id} match={match} onEdit={() => setEditing(match)} />
+                <HistoryRow
+                  busy={deleteMutation.isPending}
+                  key={match.id}
+                  match={match}
+                  onDelete={() => deleteHistoryMatch(match)}
+                  onEdit={() => setEditing(match)}
+                />
               ),
             )}
           </div>
@@ -569,7 +593,17 @@ function Breakdown({
   );
 }
 
-function HistoryRow({ match, onEdit }: { match: Match; onEdit: () => void }) {
+function HistoryRow({
+  busy,
+  match,
+  onDelete,
+  onEdit,
+}: {
+  busy: boolean;
+  match: Match;
+  onDelete: () => void;
+  onEdit: () => void;
+}) {
   return (
     <div className="react-history-row">
       <div>
@@ -582,8 +616,11 @@ function HistoryRow({ match, onEdit }: { match: Match; onEdit: () => void }) {
       </div>
       <div className="history-row-actions">
         <b className={match.result}>{match.result === "win" ? "WIN" : "LOSE"}</b>
-        <button aria-label="編集" onClick={onEdit} type="button">
+        <button aria-label="編集" disabled={busy} onClick={onEdit} type="button">
           <Pencil aria-hidden="true" size={15} />
+        </button>
+        <button aria-label="削除" className="danger" disabled={busy} onClick={onDelete} type="button">
+          <Trash2 aria-hidden="true" size={15} />
         </button>
       </div>
     </div>

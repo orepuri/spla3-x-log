@@ -42,6 +42,11 @@ test("pages through history and edits one match", async ({ page }) => {
   await expect.poll(() => api.matches[15].result).toBe("lose");
   expect(api.matches[15].season).toBe("2025-winter");
   await expect(page.locator(".history-edit")).toHaveCount(0);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "削除" }).first().click();
+  await expect.poll(() => api.matches.some((match) => match.id === "match-3")).toBe(false);
+  await expect(page.locator(".react-history-row")).toHaveCount(2);
 });
 
 test("saves the XP period and keeps it across analysis tabs", async ({ page }) => {
@@ -150,6 +155,12 @@ async function mockAnalysisApis(page) {
       const index = api.matches.findIndex((item) => item.id === id);
       api.matches[index] = { ...api.matches[index], ...request.postDataJSON() };
       return json(route, api.matches[index]);
+    }
+
+    if (url.pathname.startsWith("/api/matches/") && method === "DELETE") {
+      const id = decodeURIComponent(url.pathname.split("/").at(-1));
+      api.matches = api.matches.filter((item) => item.id !== id);
+      return route.fulfill({ status: 204 });
     }
 
     if (url.pathname === "/api/xp-records") {
