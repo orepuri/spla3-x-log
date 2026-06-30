@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Clipboard, Flame, Goal, TrendingUp } from "lucide-react";
+import { CalendarDays, Clipboard, Download, Flame, Goal, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getMonthlyReport } from "./api";
 import { rules } from "./catalog";
@@ -69,28 +69,51 @@ function SharePanel({ report }: { report: MonthlyReport }) {
     <section className="surface">
       <div className="section-heading-row">
         <SectionTitle icon={Clipboard} title="投稿用" />
-        <button className="icon-text-button" onClick={copyShareText} type="button">
-          <Clipboard aria-hidden="true" size={16} />
-          {copied ? "コピー済み" : "投稿文コピー"}
-        </button>
+        <div className="report-share-actions">
+          <button className="icon-text-button" onClick={() => downloadThumbnail(report)} type="button">
+            <Download aria-hidden="true" size={16} />
+            画像保存
+          </button>
+          <button className="icon-text-button" onClick={copyShareText} type="button">
+            <Clipboard aria-hidden="true" size={16} />
+            {copied ? "コピー済み" : "投稿文コピー"}
+          </button>
+        </div>
       </div>
       <div className="report-share-layout">
         <div className="report-share-card" aria-label="投稿用サムネイル">
-          <div>
-            <span>Splatoon 3 X Match Report</span>
-            <h2>{formatMonth(report.month)}</h2>
+          <div className="report-share-header">
+            <div>
+              <span>Splatoon 3 X Match Report</span>
+              <h2>{formatMonth(report.month)}</h2>
+            </div>
+            <b>月間</b>
           </div>
           <div className="report-share-score">
-            <strong>{report.summary.total}戦</strong>
-            <strong>{report.summary.winRate ?? 0}%</strong>
-            <strong>{report.summary.maxWinStreak}連勝</strong>
+            <strong>
+              <span>試合数</span>
+              {report.summary.total}戦
+            </strong>
+            <strong>
+              <span>勝率</span>
+              {report.summary.winRate ?? 0}%
+            </strong>
+            <strong>
+              <span>最大連勝</span>
+              {report.summary.maxWinStreak}
+            </strong>
+            <strong>
+              <span>最大連敗</span>
+              {report.summary.maxLoseStreak}
+            </strong>
           </div>
           <div className="report-share-details">
             <span>最高XP {highestXp ? `${ruleName(highestXp.rule)} ${formatXp(highestXp.xp)}` : "-"}</span>
             <span>伸びたルール {bestRule ? `${ruleName(bestRule.rule)} ${formatDelta(bestRule.xpDelta)}` : "-"}</span>
-            <span>得意 {report.highlights.bestStage?.stage || "-"}</span>
-            <span>苦戦 {report.highlights.toughStage?.stage || "-"}</span>
+            <span>得意 {report.highlights.bestStage ? `${report.highlights.bestStage.stage} ${report.highlights.bestStage.winRate ?? 0}%` : "-"}</span>
+            <span>苦戦 {report.highlights.toughStage ? `${report.highlights.toughStage.stage} ${report.highlights.toughStage.winRate ?? 0}%` : "-"}</span>
           </div>
+          <small>得意/苦戦ステージは3戦以上を対象</small>
         </div>
         <textarea aria-label="投稿文" readOnly value={shareText} />
       </div>
@@ -302,4 +325,112 @@ function buildShareText(report: MonthlyReport) {
   }
   lines.push("", "#スプラトゥーン3 #Xマッチ");
   return lines.join("\n");
+}
+
+async function downloadThumbnail(report: MonthlyReport) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 675;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  drawThumbnail(context, report);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `spla-report-${report.month}.png`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function drawThumbnail(context: CanvasRenderingContext2D, report: MonthlyReport) {
+  const width = context.canvas.width;
+  const height = context.canvas.height;
+  context.fillStyle = "#102018";
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = "#172d22";
+  roundedRect(context, 32, 32, width - 64, height - 64, 28);
+  context.fill();
+  context.fillStyle = "#b7e229";
+  roundedRect(context, 870, 70, 210, 54, 27);
+  context.fill();
+  context.fillStyle = "#102018";
+  drawText(context, "MONTHLY", 975, 105, 22, 900, "center");
+
+  context.fillStyle = "rgba(255,255,255,0.68)";
+  drawText(context, "Splatoon 3 X Match Report", 84, 100, 24, 700);
+  context.fillStyle = "#ffffff";
+  drawText(context, `${formatMonth(report.month)}`, 84, 168, 58, 760);
+
+  const metrics = [
+    ["試合数", `${report.summary.total}戦`],
+    ["勝率", `${report.summary.winRate ?? 0}%`],
+    ["最大連勝", `${report.summary.maxWinStreak}`],
+    ["最大連敗", `${report.summary.maxLoseStreak}`],
+  ];
+  metrics.forEach(([label, value], index) => {
+    const x = 84 + index * 260;
+    context.fillStyle = "rgba(255,255,255,0.08)";
+    roundedRect(context, x, 230, 224, 126, 18);
+    context.fill();
+    context.fillStyle = "rgba(255,255,255,0.62)";
+    drawText(context, label, x + 22, 272, 23, 170);
+    context.fillStyle = "#ffffff";
+    drawText(context, value, x + 22, 326, 44, 170);
+  });
+
+  const bestRule = report.highlights.mostImprovedRule;
+  const highestXp = report.highlights.highestXp;
+  const details = [
+    ["最高XP", highestXp ? `${ruleName(highestXp.rule)} ${formatXp(highestXp.xp)}` : "-"],
+    ["伸びたルール", bestRule ? `${ruleName(bestRule.rule)} ${formatDelta(bestRule.xpDelta)}` : "-"],
+    ["得意ステージ", report.highlights.bestStage ? `${report.highlights.bestStage.stage} ${report.highlights.bestStage.winRate ?? 0}%` : "-"],
+    ["苦戦ステージ", report.highlights.toughStage ? `${report.highlights.toughStage.stage} ${report.highlights.toughStage.winRate ?? 0}%` : "-"],
+  ];
+  details.forEach(([label, value], index) => {
+    const x = index % 2 === 0 ? 84 : 608;
+    const y = index < 2 ? 430 : 520;
+    context.fillStyle = "rgba(255,255,255,0.62)";
+    drawText(context, label, x, y, 24, 460);
+    context.fillStyle = "#ffffff";
+    drawText(context, value, x, y + 42, 34, 460);
+  });
+
+  context.fillStyle = "rgba(255,255,255,0.5)";
+  drawText(context, "得意/苦戦ステージは3戦以上を対象", 84, 622, 20, 720);
+}
+
+function drawText(
+  context: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  size: number,
+  maxWidth: number,
+  align: CanvasTextAlign = "left",
+) {
+  context.font = `800 ${size}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  context.textAlign = align;
+  context.textBaseline = "middle";
+  let value = text;
+  while (context.measureText(value).width > maxWidth && value.length > 1) {
+    value = `${value.slice(0, -2)}…`;
+  }
+  context.fillText(value, x, y);
+}
+
+function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.lineTo(x + width - radius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + radius);
+  context.lineTo(x + width, y + height - radius);
+  context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  context.lineTo(x + radius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - radius);
+  context.lineTo(x, y + radius);
+  context.quadraticCurveTo(x, y, x + radius, y);
+  context.closePath();
 }

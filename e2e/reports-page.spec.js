@@ -9,10 +9,16 @@ test("renders a monthly report and copies share text", async ({ context, page })
   const thumbnail = page.getByLabel("投稿用サムネイル");
   await expect(thumbnail).toContainText("2026年6月");
   await expect(thumbnail).toContainText("ガチエリア +25.5");
+  await expect(thumbnail).toContainText("最大連敗");
 
   await page.getByRole("button", { name: "投稿文コピー" }).click();
   await expect(page.getByRole("button", { name: "コピー済み" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("2026年6月 Xマッチレポート");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "画像保存" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("spla-report-2026-06.png");
 });
 
 function monthlyReport() {
