@@ -105,3 +105,47 @@ export interface AnalysisOptions {
   weapons: string[];
   stages: string[];
 }
+
+export interface MonthlyReport {
+  highlights: {
+    bestStage: { stage: string; total: number; winRate: number | null } | null;
+    highestXp: { rule: RuleId; xp: number | null } | null;
+    maxLoseStreak: number;
+    maxWinStreak: number;
+    mostImprovedRule: { rule: RuleId; xpDelta: number | null } | null;
+    mostPlayedDay: { date: string; total: number } | null;
+    toughStage: { stage: string; total: number; winRate: number | null } | null;
+  };
+  month: string;
+  range: {
+    end: string;
+    start: string;
+  };
+  rules: MonthlyRuleReport[];
+  stages: MonthlyStageReport[];
+  summary: MatchSummary & {
+    activeDays: number;
+    averageMatchesPerActiveDay: number;
+    maxLoseStreak: number;
+    maxWinStreak: number;
+    mostPlayedDay: { date: string; total: number } | null;
+  };
+}
+
+export interface MonthlyRuleReport extends MatchSummary {
+  finalXp: number | null;
+  highestXp: number | null;
+  lowestXp: number | null;
+  maxLoseStreak: number;
+  maxWinStreak: number;
+  rule: RuleId;
+  startXp: number | null;
+  xpDelta: number | null;
+}
+
+export interface MonthlyStageReport extends MatchSummary {
+  mainRules: RuleId[];
+  maxLoseStreak: number;
+  maxWinStreak: number;
+  stage: string;
+}

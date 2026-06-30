@@ -524,12 +524,87 @@ test("summary analysis API returns overall and grouped results", async () => {
   assert.equal(result.breakdown.time[0].name, "18");
 });
 
+test("monthly report API summarizes matches and XP in a JST month", async () => {
+  const calls = [];
+  const database = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("FROM matches")) {
+        return {
+          rows: [
+            reportMatch("m-1", "area", "バイガイ亭", "win", "2026-05-31T15:10:00.000Z"),
+            reportMatch("m-2", "area", "バイガイ亭", "win", "2026-06-01T01:00:00.000Z"),
+            reportMatch("m-3", "area", "デカライン高架下", "lose", "2026-06-01T02:00:00.000Z"),
+            reportMatch("m-4", "area", "デカライン高架下", "lose", "2026-06-01T03:00:00.000Z"),
+            reportMatch("m-5", "tower", "バイガイ亭", "win", "2026-06-02T03:00:00.000Z"),
+          ],
+        };
+      }
+      if (sql.includes("FROM xp_records")) {
+        return {
+          rows: [
+            reportXp("xp-0", "area", 1600, "2026-05-30T12:00:00.000Z"),
+            reportXp("xp-1", "area", 1650, "2026-06-01T04:00:00.000Z"),
+            reportXp("xp-2", "area", 1700, "2026-06-02T04:00:00.000Z"),
+            reportXp("xp-3", "tower", 1800, "2026-06-02T05:00:00.000Z"),
+          ],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(createRequest("GET", "/api/reports/monthly?month=2026-06"), response, database);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls[0].values, ["2026-05-31T15:00:00.000Z", "2026-06-30T15:00:00.000Z"]);
+  assert.deepEqual(calls[1].values, ["2026-06-30T15:00:00.000Z"]);
+  const report = JSON.parse(response.body);
+  assert.equal(report.month, "2026-06");
+  assert.equal(report.summary.total, 5);
+  assert.equal(report.summary.wins, 3);
+  assert.equal(report.summary.maxWinStreak, 2);
+  assert.equal(report.summary.maxLoseStreak, 2);
+  assert.deepEqual(report.summary.mostPlayedDay, { date: "2026-06-01", total: 4 });
+  const area = report.rules.find((rule) => rule.rule === "area");
+  assert.equal(area.startXp, 1600);
+  assert.equal(area.finalXp, 1700);
+  assert.equal(area.xpDelta, 100);
+  assert.equal(report.highlights.bestStage.stage, "バイガイ亭");
+  assert.equal(report.highlights.mostImprovedRule.rule, "area");
+});
+
 function createRequest(method, url, body) {
   const request = body === undefined ? Readable.from([]) : Readable.from([Buffer.from(JSON.stringify(body), "utf8")]);
   request.method = method;
   request.url = url;
   request.headers = { host: "127.0.0.1" };
   return request;
+}
+
+function reportMatch(id, rule, stage, result, recordedAt) {
+  return {
+    id,
+    result,
+    rule,
+    season: "2026-summer",
+    stage,
+    weapon: "スプラシューター",
+    recorded_at: new Date(recordedAt),
+  };
+}
+
+function reportXp(id, rule, xp, recordedAt) {
+  return {
+    completed_match_id: null,
+    id,
+    record_type: "completed",
+    recorded_at: new Date(recordedAt),
+    rule,
+    season: "2026-summer",
+    xp,
+  };
 }
 
 function matchRow(id, recordedAt) {

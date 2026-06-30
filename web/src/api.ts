@@ -7,6 +7,7 @@ import type {
   CurrentAnalysis,
   Match,
   MatchResult,
+  MonthlyReport,
   PageResult,
   SummaryAnalysis,
   XpRecord,
@@ -165,6 +166,11 @@ export async function getSummaryAnalysis(filters: AnalysisFilters): Promise<Summ
 
 export async function getAnalysisOptions(): Promise<AnalysisOptions> {
   return request<AnalysisOptions>("/api/analysis/options");
+}
+
+export async function getMonthlyReport(month: string): Promise<MonthlyReport> {
+  const params = new URLSearchParams({ month });
+  return request<MonthlyReport>(`/api/reports/monthly?${params}`);
 }
 
 function filterParams(filters: AnalysisFilters) {
