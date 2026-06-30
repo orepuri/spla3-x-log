@@ -575,6 +575,20 @@ test("monthly report API summarizes matches and XP in a JST month", async () => 
   assert.equal(report.highlights.mostImprovedRule.rule, "area");
 });
 
+test("monthly report API rejects months that are not closed yet", async () => {
+  const database = {
+    async query() {
+      throw new Error("Database should not be queried for unavailable months");
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(createRequest("GET", "/api/reports/monthly?month=2999-01"), response, database);
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(JSON.parse(response.body), { error: "Monthly report is not available yet" });
+});
+
 function createRequest(method, url, body) {
   const request = body === undefined ? Readable.from([]) : Readable.from([Buffer.from(JSON.stringify(body), "utf8")]);
   request.method = method;

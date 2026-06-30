@@ -830,9 +830,13 @@ async function handleMonthlyReportRequest(req, res, url, database) {
     return;
   }
 
-  const range = monthRange(url.searchParams.get("month") || currentMonthKey());
+  const range = monthRange(url.searchParams.get("month") || latestClosedMonthKey());
   if (!range) {
     sendJson(res, 400, { error: "Invalid month" });
+    return;
+  }
+  if (range.month >= currentMonthKey()) {
+    sendJson(res, 400, { error: "Monthly report is not available yet" });
     return;
   }
 
@@ -1058,6 +1062,12 @@ function monthRange(month) {
 
 function currentMonthKey() {
   return dateKeyInTokyo(new Date().toISOString()).slice(0, 7);
+}
+
+function latestClosedMonthKey() {
+  const [year, month] = currentMonthKey().split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 2, 1));
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function dateKeyInTokyo(value) {

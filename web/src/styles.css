@@ -1295,10 +1295,11 @@ input {
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: 7px;
-  background: #102018;
-  color: #fff;
-  padding: 24px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background: #f4f7f1;
+  color: #101815;
+  padding: 18px;
+  box-shadow: inset 0 0 0 1px rgba(16, 24, 21, 0.1);
+  gap: 9px;
 }
 
 .report-share-card > * {
@@ -1320,56 +1321,95 @@ input {
   font-size: 11px;
 }
 
-.report-share-card span,
-.report-share-card small {
-  color: rgba(255, 255, 255, 0.72);
+.report-share-card span {
+  color: rgba(16, 24, 21, 0.7);
   font-size: 12px;
   font-weight: 800;
 }
 
-.report-share-card small {
-  align-self: end;
-  font-size: 10px;
-}
-
 .report-share-card h2 {
   margin: 4px 0 0;
-  font-size: 30px;
+  font-size: 27px;
+  line-height: 1;
+}
+
+.report-share-rules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.report-share-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 3px 8px;
+  border: 1px solid rgba(16, 24, 21, 0.12);
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px 10px;
+}
+
+.report-share-rule:nth-child(2) {
+  background: #fff;
+}
+
+.report-share-rule:nth-child(3) {
+  background: #fff;
+}
+
+.report-share-rule:nth-child(4) {
+  background: #fff;
+}
+
+.report-share-rule span {
+  grid-column: 1 / 2;
+}
+
+.report-share-rule strong {
+  color: #101815;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.report-share-rule em {
+  align-self: center;
+  color: #66736c;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.report-share-rule em.positive {
+  color: #087f5b;
+}
+
+.report-share-rule em.negative {
+  color: #c92a2a;
 }
 
 .report-share-score {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  align-self: center;
 }
 
 .report-share-score strong {
   display: grid;
   gap: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(16, 24, 21, 0.12);
   border-radius: 7px;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 12px;
+  background: #101815;
+  color: #b7e229;
+  padding: 8px;
   text-align: center;
-  font-size: 22px;
+  font-size: 18px;
 }
 
 .report-share-score strong span {
+  color: rgba(255, 255, 255, 0.78);
   font-size: 10px;
-}
-
-.report-share-details {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
-  align-self: end;
-}
-
-.report-share-details span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .report-share-layout textarea {
@@ -1574,8 +1614,8 @@ input {
   .report-metrics,
   .report-highlight-grid,
   .report-share-layout,
-  .report-share-score,
-  .report-share-details {
+  .report-share-rules,
+  .report-share-score {
     grid-template-columns: 1fr;
   }
 

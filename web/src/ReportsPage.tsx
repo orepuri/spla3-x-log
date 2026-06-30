@@ -7,7 +7,8 @@ import { rules } from "./catalog";
 import type { MonthlyReport, MonthlyRuleReport, MonthlyStageReport } from "./types";
 
 export function MonthlyReportPage() {
-  const [month, setMonth] = useState(() => currentMonth());
+  const latestReportMonth = latestClosedMonth();
+  const [month, setMonth] = useState(latestReportMonth);
   const reportQuery = useQuery({
     queryFn: () => getMonthlyReport(month),
     queryKey: ["monthly-report", month],
@@ -23,7 +24,7 @@ export function MonthlyReportPage() {
         </div>
         <label className="compact-select report-month-select">
           <span>対象月</span>
-          <input aria-label="対象月" onChange={(event) => setMonth(event.target.value)} type="month" value={month} />
+          <input aria-label="対象月" max={latestReportMonth} onChange={(event) => setMonth(event.target.value)} type="month" value={month} />
         </label>
       </header>
 
@@ -56,8 +57,7 @@ export function MonthlyReportPage() {
 function SharePanel({ report }: { report: MonthlyReport }) {
   const [copied, setCopied] = useState(false);
   const shareText = useMemo(() => buildShareText(report), [report]);
-  const bestRule = report.highlights.mostImprovedRule;
-  const highestXp = report.highlights.highestXp;
+  const thumbnailRules = orderedRuleRows(report);
 
   async function copyShareText() {
     await navigator.clipboard.writeText(shareText);
@@ -84,12 +84,21 @@ function SharePanel({ report }: { report: MonthlyReport }) {
         <div className="report-share-card" aria-label="投稿用サムネイル">
           <div className="report-share-header">
             <div>
-              <span>Splatoon 3 X Match Report</span>
+              <span>Xマッチレポート</span>
               <h2>{formatMonth(report.month)}</h2>
             </div>
             <b>月間</b>
           </div>
-          <div className="report-share-score">
+          <div className="report-share-rules">
+            {thumbnailRules.map((row) => (
+              <div className="report-share-rule" key={row.rule}>
+                <span>{ruleName(row.rule)}</span>
+                <strong>{formatXp(row.finalXp)}</strong>
+                <em className={deltaClass(row.xpDelta)}>{formatDeltaWithArrow(row.xpDelta)}</em>
+              </div>
+            ))}
+          </div>
+          <div className="report-share-score" aria-label="月間サマリー">
             <strong>
               <span>試合数</span>
               {report.summary.total}戦
@@ -107,13 +116,6 @@ function SharePanel({ report }: { report: MonthlyReport }) {
               {report.summary.maxLoseStreak}
             </strong>
           </div>
-          <div className="report-share-details">
-            <span>最高XP {highestXp ? `${ruleName(highestXp.rule)} ${formatXp(highestXp.xp)}` : "-"}</span>
-            <span>伸びたルール {bestRule ? `${ruleName(bestRule.rule)} ${formatDelta(bestRule.xpDelta)}` : "-"}</span>
-            <span>得意 {report.highlights.bestStage ? `${report.highlights.bestStage.stage} ${report.highlights.bestStage.winRate ?? 0}%` : "-"}</span>
-            <span>苦戦 {report.highlights.toughStage ? `${report.highlights.toughStage.stage} ${report.highlights.toughStage.winRate ?? 0}%` : "-"}</span>
-          </div>
-          <small>得意/苦戦ステージは3戦以上を対象</small>
         </div>
         <textarea aria-label="投稿文" readOnly value={shareText} />
       </div>
@@ -265,7 +267,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function currentMonth() {
+function latestClosedMonth() {
   const parts = new Intl.DateTimeFormat("ja-JP", {
     month: "2-digit",
     timeZone: "Asia/Tokyo",
@@ -277,7 +279,8 @@ function currentMonth() {
       if (part.type === "month") result.month = part.value;
       return result;
     }, {} as { month?: string; year?: string });
-  return `${parts.year}-${parts.month}`;
+  const previousMonth = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 2, 1));
+  return `${previousMonth.getUTCFullYear()}-${String(previousMonth.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function formatMonth(month: string) {
@@ -303,8 +306,31 @@ function formatDelta(value: number | null) {
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}`;
 }
 
+function formatDeltaWithArrow(value: number | null) {
+  if (value === null) return "前月差 -";
+  if (value > 0) return `▲ ${value.toFixed(1)}`;
+  if (value < 0) return `▼ ${Math.abs(value).toFixed(1)}`;
+  return "±0.0";
+}
+
+function deltaClass(value: number | null) {
+  if (value === null || value === 0) return "";
+  return value > 0 ? "positive" : "negative";
+}
+
 function ruleName(id: string) {
   return rules.find((rule) => rule.id === id)?.name || id;
+}
+
+function orderedRuleRows(report: MonthlyReport) {
+  return rules.map((rule) => {
+    const row = report.rules.find((item) => item.rule === rule.id);
+    return {
+      finalXp: row?.finalXp ?? null,
+      rule: rule.id,
+      xpDelta: row?.xpDelta ?? null,
+    };
+  });
 }
 
 function buildShareText(report: MonthlyReport) {
@@ -348,21 +374,41 @@ async function downloadThumbnail(report: MonthlyReport) {
 function drawThumbnail(context: CanvasRenderingContext2D, report: MonthlyReport) {
   const width = context.canvas.width;
   const height = context.canvas.height;
-  context.fillStyle = "#102018";
-  context.fillRect(0, 0, width, height);
-  context.fillStyle = "#172d22";
-  roundedRect(context, 32, 32, width - 64, height - 64, 28);
-  context.fill();
-  context.fillStyle = "#b7e229";
-  roundedRect(context, 870, 70, 210, 54, 27);
-  context.fill();
-  context.fillStyle = "#102018";
-  drawText(context, "MONTHLY", 975, 105, 22, 900, "center");
+  const thumbnailRules = orderedRuleRows(report);
 
-  context.fillStyle = "rgba(255,255,255,0.68)";
-  drawText(context, "Splatoon 3 X Match Report", 84, 100, 24, 700);
-  context.fillStyle = "#ffffff";
-  drawText(context, `${formatMonth(report.month)}`, 84, 168, 58, 760);
+  context.fillStyle = "#f4f7f1";
+  context.fillRect(0, 0, width, height);
+
+  context.fillStyle = "#b7e229";
+  roundedRect(context, 896, 54, 224, 64, 32);
+  context.fill();
+  context.fillStyle = "#101815";
+  drawText(context, "月間", 1008, 88, 28, 170, "center");
+
+  context.fillStyle = "#66736c";
+  drawText(context, "Xマッチレポート", 84, 86, 28, 520);
+  context.fillStyle = "#101815";
+  drawText(context, `${formatMonth(report.month)}`, 84, 144, 56, 560);
+
+  thumbnailRules.forEach((row, index) => {
+    const x = 84 + (index % 2) * 520;
+    const y = 230 + Math.floor(index / 2) * 150;
+    context.fillStyle = "#ffffff";
+    roundedRect(context, x, y, 470, 118, 22);
+    context.fill();
+    context.strokeStyle = "rgba(16,24,21,0.14)";
+    context.lineWidth = 3;
+    context.stroke();
+
+    context.fillStyle = "#101815";
+    drawText(context, ruleName(row.rule), x + 28, y + 38, 27, 210);
+    drawText(context, formatXp(row.finalXp), x + 318, y + 68, 48, 190, "right");
+
+    const isPositive = row.xpDelta !== null && row.xpDelta > 0;
+    const isNegative = row.xpDelta !== null && row.xpDelta < 0;
+    context.fillStyle = isPositive ? "#087f5b" : isNegative ? "#c92a2a" : "#66736c";
+    drawText(context, formatDeltaWithArrow(row.xpDelta), x + 344, y + 70, 25, 110);
+  });
 
   const metrics = [
     ["試合数", `${report.summary.total}戦`],
@@ -371,35 +417,15 @@ function drawThumbnail(context: CanvasRenderingContext2D, report: MonthlyReport)
     ["最大連敗", `${report.summary.maxLoseStreak}`],
   ];
   metrics.forEach(([label, value], index) => {
-    const x = 84 + index * 260;
-    context.fillStyle = "rgba(255,255,255,0.08)";
-    roundedRect(context, x, 230, 224, 126, 18);
+    const x = 84 + index * 258;
+    context.fillStyle = "#101815";
+    roundedRect(context, x, 548, 222, 82, 18);
     context.fill();
-    context.fillStyle = "rgba(255,255,255,0.62)";
-    drawText(context, label, x + 22, 272, 23, 170);
     context.fillStyle = "#ffffff";
-    drawText(context, value, x + 22, 326, 44, 170);
+    drawText(context, label, x + 111, 572, 20, 180, "center");
+    context.fillStyle = "#b7e229";
+    drawText(context, value, x + 111, 606, 30, 182, "center");
   });
-
-  const bestRule = report.highlights.mostImprovedRule;
-  const highestXp = report.highlights.highestXp;
-  const details = [
-    ["最高XP", highestXp ? `${ruleName(highestXp.rule)} ${formatXp(highestXp.xp)}` : "-"],
-    ["伸びたルール", bestRule ? `${ruleName(bestRule.rule)} ${formatDelta(bestRule.xpDelta)}` : "-"],
-    ["得意ステージ", report.highlights.bestStage ? `${report.highlights.bestStage.stage} ${report.highlights.bestStage.winRate ?? 0}%` : "-"],
-    ["苦戦ステージ", report.highlights.toughStage ? `${report.highlights.toughStage.stage} ${report.highlights.toughStage.winRate ?? 0}%` : "-"],
-  ];
-  details.forEach(([label, value], index) => {
-    const x = index % 2 === 0 ? 84 : 608;
-    const y = index < 2 ? 430 : 520;
-    context.fillStyle = "rgba(255,255,255,0.62)";
-    drawText(context, label, x, y, 24, 460);
-    context.fillStyle = "#ffffff";
-    drawText(context, value, x, y + 42, 34, 460);
-  });
-
-  context.fillStyle = "rgba(255,255,255,0.5)";
-  drawText(context, "得意/苦戦ステージは3戦以上を対象", 84, 622, 20, 720);
 }
 
 function drawText(
