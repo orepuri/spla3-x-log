@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Flame, Goal, TrendingUp } from "lucide-react";
+import { CalendarDays, Clipboard, Flame, Goal, TrendingUp } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getMonthlyReport } from "./api";
 import { rules } from "./catalog";
@@ -44,11 +44,57 @@ export function MonthlyReportPage() {
           </section>
 
           <Highlights report={report} />
+          <SharePanel report={report} />
           <RuleTable rules={report.rules} />
           <StageTable stages={report.stages} />
         </div>
       ) : null}
     </div>
+  );
+}
+
+function SharePanel({ report }: { report: MonthlyReport }) {
+  const [copied, setCopied] = useState(false);
+  const shareText = useMemo(() => buildShareText(report), [report]);
+  const bestRule = report.highlights.mostImprovedRule;
+  const highestXp = report.highlights.highestXp;
+
+  async function copyShareText() {
+    await navigator.clipboard.writeText(shareText);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <section className="surface">
+      <div className="section-heading-row">
+        <SectionTitle icon={Clipboard} title="投稿用" />
+        <button className="icon-text-button" onClick={copyShareText} type="button">
+          <Clipboard aria-hidden="true" size={16} />
+          {copied ? "コピー済み" : "投稿文コピー"}
+        </button>
+      </div>
+      <div className="report-share-layout">
+        <div className="report-share-card" aria-label="投稿用サムネイル">
+          <div>
+            <span>Splatoon 3 X Match Report</span>
+            <h2>{formatMonth(report.month)}</h2>
+          </div>
+          <div className="report-share-score">
+            <strong>{report.summary.total}戦</strong>
+            <strong>{report.summary.winRate ?? 0}%</strong>
+            <strong>{report.summary.maxWinStreak}連勝</strong>
+          </div>
+          <div className="report-share-details">
+            <span>最高XP {highestXp ? `${ruleName(highestXp.rule)} ${formatXp(highestXp.xp)}` : "-"}</span>
+            <span>伸びたルール {bestRule ? `${ruleName(bestRule.rule)} ${formatDelta(bestRule.xpDelta)}` : "-"}</span>
+            <span>得意 {report.highlights.bestStage?.stage || "-"}</span>
+            <span>苦戦 {report.highlights.toughStage?.stage || "-"}</span>
+          </div>
+        </div>
+        <textarea aria-label="投稿文" readOnly value={shareText} />
+      </div>
+    </section>
   );
 }
 
@@ -236,4 +282,24 @@ function formatDelta(value: number | null) {
 
 function ruleName(id: string) {
   return rules.find((rule) => rule.id === id)?.name || id;
+}
+
+function buildShareText(report: MonthlyReport) {
+  const lines = [
+    `${formatMonth(report.month)} Xマッチレポート`,
+    "",
+    `${report.summary.total}戦 ${report.summary.wins}勝${report.summary.losses}敗 勝率${report.summary.winRate ?? 0}%`,
+    `最大連勝: ${report.summary.maxWinStreak}`,
+  ];
+  if (report.highlights.highestXp) {
+    lines.push(`最高XP: ${ruleName(report.highlights.highestXp.rule)} ${formatXp(report.highlights.highestXp.xp)}`);
+  }
+  if (report.highlights.mostImprovedRule) {
+    lines.push(`一番伸びたルール: ${ruleName(report.highlights.mostImprovedRule.rule)} ${formatDelta(report.highlights.mostImprovedRule.xpDelta)}`);
+  }
+  if (report.highlights.bestStage) {
+    lines.push(`得意ステージ: ${report.highlights.bestStage.stage} ${report.highlights.bestStage.winRate ?? 0}%`);
+  }
+  lines.push("", "#スプラトゥーン3 #Xマッチ");
+  return lines.join("\n");
 }
