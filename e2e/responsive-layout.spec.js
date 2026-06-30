@@ -13,7 +13,7 @@ for (const viewport of viewports) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await mockResponsiveApis(page);
 
-    for (const route of ["/record", "/backfill", "/analysis/summary?rule=area", "/data"]) {
+    for (const route of ["/record", "/backfill", "/analysis/summary?rule=area", "/reports/monthly", "/data"]) {
       await page.goto(route);
       await expect(page.locator("h1")).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -106,10 +106,59 @@ async function mockResponsiveApis(page) {
         },
       });
     }
+    if (url.pathname === "/api/reports/monthly") {
+      return json(route, monthlyReport(summary));
+    }
     if (url.pathname === "/api/matches") return json(route, { items: matches, nextCursor: null });
     if (url.pathname === "/api/xp-records") return json(route, { items: [], nextCursor: null });
     return json(route, {});
   });
+}
+
+function monthlyReport(summary) {
+  return {
+    highlights: {
+      bestStage: { stage: "デカライン高架下", total: 3, winRate: 67 },
+      highestXp: { rule: "area", xp: 2187.4 },
+      maxLoseStreak: 1,
+      maxWinStreak: 1,
+      mostImprovedRule: { rule: "area", xpDelta: 25.5 },
+      mostPlayedDay: { date: "2026-06-18", total: 3 },
+      toughStage: { stage: "ユノハナ大渓谷", total: 2, winRate: 50 },
+    },
+    month: "2026-06",
+    range: { start: "2026-05-31T15:00:00.000Z", end: "2026-06-30T15:00:00.000Z" },
+    rules: [
+      {
+        ...summary,
+        finalXp: 2187.4,
+        highestXp: 2187.4,
+        lowestXp: 2161.9,
+        maxLoseStreak: 1,
+        maxWinStreak: 1,
+        rule: "area",
+        startXp: 2161.9,
+        xpDelta: 25.5,
+      },
+    ],
+    stages: [
+      {
+        ...summary,
+        mainRules: ["area"],
+        maxLoseStreak: 1,
+        maxWinStreak: 1,
+        stage: "デカライン高架下",
+      },
+    ],
+    summary: {
+      ...summary,
+      activeDays: 1,
+      averageMatchesPerActiveDay: 3,
+      maxLoseStreak: 1,
+      maxWinStreak: 1,
+      mostPlayedDay: { date: "2026-06-18", total: 3 },
+    },
+  };
 }
 
 function match(id, stage, result, recordedAt) {

@@ -3,6 +3,7 @@ import {
   BarChart3,
   Clock3,
   Database,
+  FileText,
   Gamepad2,
   Swords,
 } from "lucide-react";
@@ -11,11 +12,13 @@ import { BackfillPage } from "./BackfillPage";
 import { RecordPage } from "./RecordPage";
 import { AnalysisLayout, HistoryPage, SummaryPage, XpPage } from "./AnalysisPages";
 import { DataPage } from "./DataPage";
+import { MonthlyReportPage } from "./ReportsPage";
 
 const primaryNavigation = [
   { to: "/record", label: "試合記録", icon: Swords },
   { to: "/backfill", label: "過去入力", icon: Clock3 },
   { to: "/analysis/xp", label: "分析", icon: BarChart3 },
+  { to: "/reports/monthly", label: "レポート", icon: FileText },
   { to: "/data", label: "データ", icon: Database },
 ];
 
@@ -26,6 +29,10 @@ export function App() {
         <Route path="/record" element={<RecordPage />} />
         <Route path="/backfill" element={<BackfillPage />} />
         <Route path="/data" element={<DataPage />} />
+        <Route path="/reports">
+          <Route index element={<Navigate replace to="monthly" />} />
+          <Route path="monthly" element={<MonthlyReportPage />} />
+        </Route>
         <Route path="/analysis" element={<AnalysisLayout />}>
           <Route index element={<Navigate replace to="xp" />} />
           <Route path="summary" element={<SummaryPage />} />

@@ -16,6 +16,10 @@ test("opens React routes directly and navigates between workflows", async ({ pag
   await page.getByRole("link", { name: "履歴" }).click();
   await expect(page).toHaveURL(/\/analysis\/history$/);
   await expect(page.getByRole("heading", { level: 2, name: "履歴" })).toBeVisible();
+
+  await page.getByRole("link", { name: "レポート" }).click();
+  await expect(page).toHaveURL(/\/reports\/monthly$/);
+  await expect(page.getByRole("heading", { level: 1, name: "レポート" })).toBeVisible();
 });
 
 test("uses the React record page as the root application", async ({ page }) => {
@@ -62,6 +66,6 @@ test("uses bottom navigation on an iPhone viewport", async ({ page }) => {
 
   await expect(page.locator(".sidebar")).toBeHidden();
   await expect(page.locator(".mobile-nav")).toBeVisible();
-  await expect(page.locator(".mobile-nav .nav-link")).toHaveCount(4);
+  await expect(page.locator(".mobile-nav .nav-link")).toHaveCount(5);
   await expect(page.getByRole("heading", { level: 1, name: "試合記録" })).toBeVisible();
 });
