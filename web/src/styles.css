@@ -1189,6 +1189,10 @@ input {
   gap: 14px;
 }
 
+.report-layout > .surface {
+  min-width: 0;
+}
+
 .report-metrics {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -1225,6 +1229,8 @@ input {
 }
 
 .report-table-wrap {
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
 }
 
@@ -1270,13 +1276,25 @@ input {
   align-items: stretch;
 }
 
+.report-share-layout > * {
+  min-width: 0;
+}
+
 .report-share-card {
   display: grid;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   aspect-ratio: 16 / 9;
+  overflow: hidden;
   border-radius: 7px;
   background: #102018;
   color: #fff;
   padding: 24px;
+}
+
+.report-share-card > * {
+  min-width: 0;
 }
 
 .report-share-card span {
@@ -1320,6 +1338,8 @@ input {
 }
 
 .report-share-layout textarea {
+  width: 100%;
+  min-width: 0;
   min-height: 100%;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -1525,11 +1545,22 @@ input {
   }
 
   .report-share-card {
+    aspect-ratio: auto;
     padding: 16px;
   }
 
   .report-share-card h2 {
     font-size: 24px;
+  }
+
+  .report-month-select,
+  .report-month-select input,
+  .report-table-wrap {
+    width: 100%;
+  }
+
+  .report-table-wrap {
+    max-width: calc(100vw - 24px);
   }
 
   .section-heading-row {
