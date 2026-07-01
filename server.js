@@ -93,6 +93,12 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
+  const xpRecordPath = url.pathname.match(/^\/api\/xp-records\/([^/]+)$/);
+  if (xpRecordPath) {
+    await handleXpRecordRequest(req, res, database, decodeURIComponent(xpRecordPath[1]));
+    return;
+  }
+
   if (url.pathname === "/api/xp-state") {
     await handleXpStateRequest(req, res, url, database);
     return;
@@ -607,6 +613,36 @@ async function handleXpRecordsRequest(req, res, url, database) {
       [record.id, record.season, record.rule, record.xp, record.completedMatchId, record.recordType, record.recordedAt],
     );
     sendJson(res, 201, xpRecordFromRow(result.rows[0]));
+    return;
+  }
+
+  sendJson(res, 405, { error: "Method not allowed" });
+}
+
+async function handleXpRecordRequest(req, res, database, id) {
+  if (!requireDatabase(res, database)) return;
+
+  if (req.method === "PATCH") {
+    const input = await readJsonBody(req);
+    const record = normalizeXpRecord({ ...input, id });
+    if (!record) {
+      sendJson(res, 400, { error: "Invalid XP record" });
+      return;
+    }
+    const result = await database.query(
+      `
+        UPDATE xp_records
+        SET season = $2, rule = $3, xp = $4, completed_match_id = $5, record_type = $6, recorded_at = $7
+        WHERE id = $1
+        RETURNING id, season, rule, xp, completed_match_id, record_type, recorded_at
+      `,
+      [record.id, record.season, record.rule, record.xp, record.completedMatchId, record.recordType, record.recordedAt],
+    );
+    if (!result.rows.length) {
+      sendJson(res, 404, { error: "XP record not found" });
+      return;
+    }
+    sendJson(res, 200, xpRecordFromRow(result.rows[0]));
     return;
   }
 

@@ -348,6 +348,56 @@ test("XP records API creates and pages records", async () => {
   assert.match(calls[1].sql, /recorded_at <= \$3/);
 });
 
+test("XP records API updates one record", async () => {
+  const calls = [];
+  const database = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      assert.match(sql, /UPDATE xp_records/);
+      return {
+        rows: [
+          {
+            completed_match_id: values[4],
+            id: values[0],
+            record_type: values[5],
+            recorded_at: new Date(values[6]),
+            rule: values[2],
+            season: values[1],
+            xp: values[3],
+          },
+        ],
+      };
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(
+    createRequest("PATCH", "/api/xp-records/xp-1", {
+      completedMatchId: null,
+      recordType: "manual",
+      recordedAt: "2026-06-18T03:00:00.000Z",
+      rule: "tower",
+      season: "2026-summer",
+      xp: 2199.8,
+    }),
+    response,
+    database,
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(calls[0].values[0], "xp-1");
+  assert.equal(calls[0].values[3], 2199.8);
+  assert.deepEqual(JSON.parse(response.body), {
+    completedMatchId: null,
+    id: "xp-1",
+    recordType: "manual",
+    recordedAt: "2026-06-18T03:00:00.000Z",
+    rule: "tower",
+    season: "2026-summer",
+    xp: 2199.8,
+  });
+});
+
 test("current analysis API returns latest XP and win rates for selected stages", async () => {
   const database = {
     async query(sql) {

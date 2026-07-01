@@ -67,6 +67,16 @@ test("saves the XP period and keeps it across analysis tabs", async ({ page }) =
   await expect(page.locator(".xp-record-trend.up").first()).toContainText("+37.0");
   await expect(page.locator(".xp-record-trend.down").first()).toContainText("-7.5");
   expect(api.requestedAllXpRules).toBe(true);
+
+  await page.getByRole("button", { name: "XPを編集" }).first().click();
+  const edit = page.locator(".history-edit");
+  await edit.getByLabel("ルール").selectOption("tower");
+  await edit.getByLabel("XP").fill("2199.8");
+  await edit.getByRole("button", { name: "保存" }).click();
+  await expect.poll(() => api.xpRecords.find((record) => record.id === "xp-5")?.xp).toBe(2199.8);
+  expect(api.xpRecords.find((record) => record.id === "xp-5")?.rule).toBe("tower");
+  await expect(page.locator(".history-edit")).toHaveCount(0);
+
   await page.getByLabel("期間").selectOption("90");
   await expect.poll(() => api.preferences.xpPeriod).toBe("90");
 
@@ -101,6 +111,8 @@ async function mockAnalysisApis(page) {
     xpRecords: [
       ...Array.from({ length: 6 }, (_, index) => ({
         id: `xp-${index}`,
+        completedMatchId: null,
+        recordType: "completed",
         season: "2026-summer",
         rule: index % 2 ? "tower" : "area",
         xp: index === 3 ? 2200 : 2100 + index * 18.5,
@@ -108,6 +120,8 @@ async function mockAnalysisApis(page) {
       })),
       {
         id: "xp-same-day-earlier",
+        completedMatchId: null,
+        recordType: "completed",
         season: "2026-summer",
         rule: "area",
         xp: 2120,
@@ -175,6 +189,13 @@ async function mockAnalysisApis(page) {
           (!end || new Date(record.recordedAt) <= new Date(end)),
       );
       return json(route, { items, nextCursor: null });
+    }
+
+    if (url.pathname.startsWith("/api/xp-records/") && method === "PATCH") {
+      const id = decodeURIComponent(url.pathname.split("/").at(-1));
+      const index = api.xpRecords.findIndex((item) => item.id === id);
+      api.xpRecords[index] = { ...api.xpRecords[index], ...request.postDataJSON() };
+      return json(route, api.xpRecords[index]);
     }
 
     return json(route, {});

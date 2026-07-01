@@ -25,6 +25,7 @@ import {
   getXpRecords,
   updateMatch,
   updatePreferences,
+  updateXpRecord,
 } from "./api";
 import { rules, seasonName, seasons, stages, weapons } from "./catalog";
 import type {
@@ -297,7 +298,9 @@ export function HistoryPage() {
 
 export function XpPage() {
   const { filters, options, preferences, preferencesLoading, savePreferences, setFilter } = useAnalysisContext();
+  const queryClient = useQueryClient();
   const [historyPageIndex, setHistoryPageIndex] = useState(0);
+  const [editingRecord, setEditingRecord] = useState<XpRecord | null>(null);
   const dateRange = xpDateRange(preferences);
   const xpQuery = useQuery({
     enabled: !preferencesLoading,
@@ -333,6 +336,7 @@ export function XpPage() {
 
   useEffect(() => {
     setHistoryPageIndex(0);
+    setEditingRecord(null);
   }, [filters.season, preferences.xpPeriod, preferences.xpStart, preferences.xpEnd]);
 
   useEffect(() => {
@@ -354,6 +358,19 @@ export function XpPage() {
     }
     savePreferences({ ...preferences, [key]: value });
   }
+
+  function saveEditingRecord() {
+    if (!editingRecord) return;
+    xpUpdateMutation.mutate(editingRecord);
+  }
+
+  const xpUpdateMutation = useMutation({
+    mutationFn: (record: XpRecord) => updateXpRecord(record.id, record),
+    onSuccess: async () => {
+      setEditingRecord(null);
+      await invalidateXpData(queryClient);
+    },
+  });
 
   return (
     <section className="surface analysis-surface">
@@ -403,7 +420,25 @@ export function XpPage() {
             <>
               <div className="xp-record-list">
                 {xpHistoryPage.map(({ delta, previous, record }) => (
-                  <XpRecordRow delta={delta} key={record.id} previous={previous} record={record} />
+                  <div key={record.id}>
+                    <XpRecordRow
+                      busy={xpUpdateMutation.isPending}
+                      delta={delta}
+                      onEdit={() => setEditingRecord(record)}
+                      previous={previous}
+                      record={record}
+                    />
+                    {editingRecord?.id === record.id ? (
+                      <XpRecordEdit
+                        busy={xpUpdateMutation.isPending}
+                        options={options}
+                        record={editingRecord}
+                        onCancel={() => setEditingRecord(null)}
+                        onChange={setEditingRecord}
+                        onSave={saveEditingRecord}
+                      />
+                    ) : null}
+                  </div>
                 ))}
               </div>
               <div className="pagination">
@@ -428,11 +463,15 @@ export function XpPage() {
 }
 
 function XpRecordRow({
+  busy,
   delta,
+  onEdit,
   previous,
   record,
 }: {
+  busy: boolean;
   delta: number | null;
+  onEdit: () => void;
   previous: XpRecord | null;
   record: XpRecord;
 }) {
@@ -450,6 +489,76 @@ function XpRecordRow({
         {delta === null ? "-" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}`}
       </span>
       <time>{formatDateTime(record.recordedAt)}</time>
+      <button aria-label="XPを編集" disabled={busy} onClick={onEdit} type="button">
+        <Pencil aria-hidden="true" size={15} />
+      </button>
+    </div>
+  );
+}
+
+function XpRecordEdit({
+  busy,
+  options,
+  record,
+  onCancel,
+  onChange,
+  onSave,
+}: {
+  busy: boolean;
+  options: AnalysisOptions;
+  record: XpRecord;
+  onCancel: () => void;
+  onChange: (record: XpRecord) => void;
+  onSave: () => void;
+}) {
+  const xpValue = Number.isFinite(record.xp) ? String(record.xp) : "";
+  return (
+    <div className="history-edit xp-record-edit">
+      <div className="history-edit-fields xp-record-edit-fields">
+        <FilterSelect
+          label="シーズン"
+          onChange={(season) => onChange({ ...record, season })}
+          options={options.seasons.map((item) => ({ label: seasonName(item), value: item }))}
+          value={record.season}
+        />
+        <FilterSelect
+          label="ルール"
+          onChange={(rule) => onChange({ ...record, rule: rule as RuleId })}
+          options={options.rules.map((item) => ({ label: ruleName(item), value: item }))}
+          value={record.rule}
+        />
+        <label className="preview-field">
+          <span>XP</span>
+          <input
+            aria-label="XP"
+            inputMode="decimal"
+            min="0"
+            onChange={(event) => onChange({ ...record, xp: Number(event.target.value) })}
+            step="0.1"
+            type="number"
+            value={xpValue}
+          />
+        </label>
+        <label className="preview-field">
+          <span>記録日時</span>
+          <input
+            aria-label="記録日時"
+            onChange={(event) => onChange({ ...record, recordedAt: tokyoDateTimeToIso(event.target.value) })}
+            type="datetime-local"
+            value={toDateTimeLocal(record.recordedAt)}
+          />
+        </label>
+      </div>
+      <div className="history-edit-actions">
+        <button disabled={busy} onClick={onCancel} type="button">
+          <X aria-hidden="true" size={15} />
+          キャンセル
+        </button>
+        <button className="save" disabled={busy || !Number.isFinite(record.xp) || record.xp < 0} onClick={onSave} type="button">
+          <Save aria-hidden="true" size={15} />
+          保存
+        </button>
+      </div>
     </div>
   );
 }
@@ -930,6 +1039,28 @@ function formatDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
+function toDateTimeLocal(iso: string) {
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+  })
+    .formatToParts(new Date(iso))
+    .reduce<Record<string, string>>((result, part) => {
+      result[part.type] = part.value;
+      return result;
+    }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+function tokyoDateTimeToIso(value: string) {
+  return new Date(`${value}:00+09:00`).toISOString();
+}
+
 function dateInputValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -947,4 +1078,13 @@ function ErrorState() {
 
 function Empty({ compact = false }: { compact?: boolean }) {
   return <div className={compact ? "compact-empty" : "empty-state"}>データなし</div>;
+}
+
+async function invalidateXpData(queryClient: ReturnType<typeof useQueryClient>) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["analysis-xp"] }),
+    queryClient.invalidateQueries({ queryKey: ["current-analysis"] }),
+    queryClient.invalidateQueries({ queryKey: ["xp-state"] }),
+    queryClient.invalidateQueries({ queryKey: ["monthly-report"] }),
+  ]);
 }

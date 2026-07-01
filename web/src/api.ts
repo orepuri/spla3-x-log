@@ -137,6 +137,14 @@ export async function createXpRecord(input: {
   });
 }
 
+export async function updateXpRecord(id: string, input: Partial<XpRecord>): Promise<XpRecord> {
+  return request<XpRecord>(`/api/xp-records/${encodeURIComponent(id)}`, {
+    body: JSON.stringify(input),
+    headers: { "content-type": "application/json" },
+    method: "PATCH",
+  });
+}
+
 export async function getXpState(season: string, rule: string): Promise<XpState> {
   const params = new URLSearchParams({ rule, season });
   return request<XpState>(`/api/xp-state?${params}`);
