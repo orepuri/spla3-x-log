@@ -105,11 +105,11 @@ export function RecordPage() {
         season: settings.season,
         stage,
         weapon: settings.weapon,
-      }),
+    }),
     onError: () => setError("試合結果を保存できません"),
     onSuccess: async (match) => {
       setError("");
-      setFeedback(`${match.result === "win" ? "WIN" : "LOSE"}を保存しました`);
+      setFeedback(`${resultLabel(match.result)}を保存しました`);
       await refreshRecordData();
     },
   });
@@ -289,6 +289,10 @@ export function RecordPage() {
             <ResultButton disabled={isBusy} onClick={() => matchMutation.mutate({ stage: settings.stageB, result: "win" })} result="WIN" stage={settings.stageB} tone="win" />
             <ResultButton disabled={isBusy} onClick={() => matchMutation.mutate({ stage: settings.stageB, result: "lose" })} result="LOSE" stage={settings.stageB} tone="lose" />
           </div>
+          <div className="disconnect-grid">
+            <DisconnectButton disabled={isBusy} onClick={() => matchMutation.mutate({ stage: settings.stageA, result: "disconnect" })} stage={settings.stageA} />
+            <DisconnectButton disabled={isBusy} onClick={() => matchMutation.mutate({ stage: settings.stageB, result: "disconnect" })} stage={settings.stageB} />
+          </div>
           <XpProgress
             current={xpStateQuery.data?.current}
             loading={xpStateQuery.isLoading}
@@ -372,19 +376,21 @@ export function RecordPage() {
 
 function RecentMatches({ matches }: { matches: Array<{ id: string; recordedAt: string; result: MatchResult; stage: string }> }) {
   const wins = matches.filter((match) => match.result === "win").length;
+  const losses = matches.filter((match) => match.result === "lose").length;
+  const disconnects = matches.filter((match) => match.result === "disconnect").length;
 
   return (
     <>
       <div className="recent-match-summary">
         <strong>
-          {wins}勝{matches.length - wins}敗
+          {wins}勝{losses}敗
         </strong>
-        <span>直近{matches.length}試合</span>
+        <span>直近{matches.length}件{disconnects ? ` / 通信切断${disconnects}件` : ""}</span>
       </div>
       <div className="recent-match-list">
         {matches.map((match) => (
           <div className="recent-match-row" key={match.id}>
-            <b className={match.result}>{match.result === "win" ? "WIN" : "LOSE"}</b>
+            <b className={match.result}>{resultLabel(match.result)}</b>
             <strong>{match.stage}</strong>
             <time dateTime={match.recordedAt}>{formatDateTime(match.recordedAt)}</time>
           </div>
@@ -617,6 +623,21 @@ function ResultButton({
       <strong>{result}</strong>
     </button>
   );
+}
+
+function DisconnectButton({ disabled, onClick, stage }: { disabled: boolean; onClick: () => void; stage: string }) {
+  return (
+    <button className="disconnect-button" disabled={disabled} onClick={onClick} type="button">
+      <span>{stage}</span>
+      <strong>通信切断負け</strong>
+    </button>
+  );
+}
+
+function resultLabel(result: MatchResult) {
+  if (result === "win") return "WIN";
+  if (result === "lose") return "LOSE";
+  return "通信切断";
 }
 
 function formatRate(summary?: MatchSummary) {

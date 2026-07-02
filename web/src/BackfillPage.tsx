@@ -169,6 +169,7 @@ export function BackfillPage({ embedded = false }: { embedded?: boolean }) {
               options={[
                 { label: "WIN", value: "win" },
                 { label: "LOSE", value: "lose" },
+                { label: "通信切断", value: "disconnect" },
               ]}
               value={matchForm.result}
             />

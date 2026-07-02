@@ -1,5 +1,5 @@
 export type RuleId = "area" | "tower" | "rainmaker" | "clam";
-export type MatchResult = "win" | "lose";
+export type MatchResult = "win" | "lose" | "disconnect";
 
 export interface AppSettings {
   season: string;

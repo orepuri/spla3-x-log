@@ -184,11 +184,12 @@ function match(id, stage, result, recordedAt) {
 
 function summarize(items) {
   const wins = items.filter((item) => item.result === "win").length;
+  const losses = items.filter((item) => item.result === "lose").length;
   return {
     wins,
-    losses: items.length - wins,
-    total: items.length,
-    winRate: items.length ? Math.round((wins / items.length) * 100) : null,
+    losses,
+    total: wins + losses,
+    winRate: wins + losses ? Math.round((wins / (wins + losses)) * 100) : null,
   };
 }
 

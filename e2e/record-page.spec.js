@@ -42,6 +42,11 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   await page.getByRole("button", { name: "最後を取り消す" }).click();
   await expect.poll(() => api.matches.length).toBe(2);
   await expect(page.getByText("最後の試合を取り消しました")).toBeVisible();
+
+  await page.getByRole("button", { name: "マサバ海峡大橋 通信切断負け" }).click();
+  await expect.poll(() => api.matches.length).toBe(3);
+  expect(api.matches[0].result).toBe("disconnect");
+  await expect(page.getByText("通信切断を保存しました")).toBeVisible();
 });
 
 test("disables result actions while a match is being saved", async ({ page }) => {
@@ -218,7 +223,7 @@ function xpState(api) {
   let current = [];
   for (const item of relevant) {
     current.push(item);
-    const score = summary(current);
+    const score = xpScore(current);
     if (score.wins !== 3 && score.losses !== 3) continue;
     pending.push({
       completedAt: item.recordedAt,
@@ -229,7 +234,7 @@ function xpState(api) {
     });
     current = [];
   }
-  const score = summary(current);
+  const score = xpScore(current);
   return {
     current: { wins: score.wins, losses: score.losses },
     latestXp: api.xpRecords[0] || null,
@@ -244,11 +249,20 @@ function estimateDelta(score) {
 
 function summary(items) {
   const wins = items.filter((item) => item.result === "win").length;
+  const losses = items.filter((item) => item.result === "lose").length;
+  return {
+    wins,
+    losses,
+    total: wins + losses,
+    winRate: wins + losses ? Math.round((wins / (wins + losses)) * 100) : null,
+  };
+}
+
+function xpScore(items) {
+  const wins = items.filter((item) => item.result === "win").length;
   return {
     wins,
     losses: items.length - wins,
-    total: items.length,
-    winRate: items.length ? Math.round((wins / items.length) * 100) : null,
   };
 }
 

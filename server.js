@@ -164,7 +164,7 @@ async function migrate() {
       rule text NOT NULL,
       stage text NOT NULL,
       weapon text NOT NULL,
-      result text NOT NULL CHECK (result IN ('win', 'lose')),
+      result text NOT NULL CHECK (result IN ('win', 'lose', 'disconnect')),
       recorded_at timestamptz NOT NULL
     );
 
@@ -179,6 +179,8 @@ async function migrate() {
     );
 
     ALTER TABLE matches ADD COLUMN IF NOT EXISTS season text;
+    ALTER TABLE matches DROP CONSTRAINT IF EXISTS matches_result_check;
+    ALTER TABLE matches ADD CONSTRAINT matches_result_check CHECK (result IN ('win', 'lose', 'disconnect'));
     ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS season text;
     ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS completed_match_id text;
     ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS record_type text;
@@ -732,7 +734,7 @@ async function handleCurrentAnalysisRequest(req, res, url, database) {
       `
         SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE result = 'win')::int AS wins
         FROM matches
-        WHERE season = $1 AND rule = $2 AND weapon = $3
+        WHERE season = $1 AND rule = $2 AND weapon = $3 AND result IN ('win', 'lose')
       `,
       [season, rule, weapon],
     ),
@@ -741,7 +743,7 @@ async function handleCurrentAnalysisRequest(req, res, url, database) {
           `
             SELECT stage, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE result = 'win')::int AS wins
             FROM matches
-            WHERE season = $1 AND rule = $2 AND weapon = $3 AND stage = ANY($4::text[])
+            WHERE season = $1 AND rule = $2 AND weapon = $3 AND stage = ANY($4::text[]) AND result IN ('win', 'lose')
             GROUP BY stage
           `,
           [season, rule, weapon, stages],
@@ -828,6 +830,7 @@ async function handleStagePerformanceRequest(req, res, url, database) {
     values.push(startDate.toISOString());
     where.push(`recorded_at >= $${values.length}`);
   }
+  where.push("result IN ('win', 'lose')");
 
   const [overallResult, stageResult] = await Promise.all([
     database.query(
@@ -870,6 +873,7 @@ async function handleSummaryAnalysisRequest(req, res, url, database) {
   }
 
   const { whereSql, values } = analysisFilters(url);
+  const countedWhereSql = whereSql ? `${whereSql} AND result IN ('win', 'lose')` : "WHERE result IN ('win', 'lose')";
   const breakdownQueries = {
     season: "season",
     rule: "rule",
@@ -881,7 +885,7 @@ async function handleSummaryAnalysisRequest(req, res, url, database) {
       `
         SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE result = 'win')::int AS wins
         FROM matches
-        ${whereSql}
+        ${countedWhereSql}
       `,
       values,
     ),
@@ -890,7 +894,7 @@ async function handleSummaryAnalysisRequest(req, res, url, database) {
         `
           SELECT ${column} AS name, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE result = 'win')::int AS wins
           FROM matches
-          ${whereSql}
+          ${countedWhereSql}
           GROUP BY ${column}
           ORDER BY total DESC, wins DESC
         `,
@@ -904,7 +908,7 @@ async function handleSummaryAnalysisRequest(req, res, url, database) {
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE result = 'win')::int AS wins
         FROM matches
-        ${whereSql}
+        ${countedWhereSql}
         GROUP BY (${recordedHourSql})::int
         ORDER BY (${recordedHourSql})::int
       `,
@@ -1018,18 +1022,19 @@ function matchSummaryFromRow(row) {
 
 function buildMonthlyReport(month, start, end, matches, xpRecords) {
   const periodMatches = matches.filter((match) => isInRange(match.recordedAt, start, end)).sort(compareRecordedAt);
+  const countedPeriodMatches = periodMatches.filter(isCountedMatch);
   const periodRecords = xpRecords.filter((record) => isInRange(record.recordedAt, start, end)).sort(compareRecordedAt);
   const recordsBeforeStart = xpRecords.filter((record) => new Date(record.recordedAt).getTime() < new Date(start).getTime());
-  const summary = summaryForMatches(periodMatches);
-  const dayCounts = countBy(periodMatches, (match) => dateKeyInTokyo(match.recordedAt));
+  const summary = summaryForMatches(countedPeriodMatches);
+  const dayCounts = countBy(countedPeriodMatches, (match) => dateKeyInTokyo(match.recordedAt));
   const mostPlayedDay = [...dayCounts.entries()]
     .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
     .map(([date, total]) => ({ date, total }))
     .at(0) || null;
-  const overallStreak = streakStats(periodMatches);
-  const rules = [...new Set([...periodMatches.map((match) => match.rule), ...xpRecords.map((record) => record.rule)])]
+  const overallStreak = streakStats(countedPeriodMatches);
+  const rules = [...new Set([...countedPeriodMatches.map((match) => match.rule), ...xpRecords.map((record) => record.rule)])]
     .map((rule) => {
-      const ruleMatches = periodMatches.filter((match) => match.rule === rule);
+      const ruleMatches = countedPeriodMatches.filter((match) => match.rule === rule);
       const before = recordsBeforeStart.filter((record) => record.rule === rule).sort(compareRecordedAt).at(-1) || null;
       const inMonth = periodRecords.filter((record) => record.rule === rule);
       const points = [before, ...inMonth].filter(Boolean);
@@ -1052,7 +1057,7 @@ function buildMonthlyReport(month, start, end, matches, xpRecords) {
     })
     .filter((row) => row.total > 0 || row.finalXp !== null)
     .sort((left, right) => right.total - left.total || String(left.rule).localeCompare(String(right.rule)));
-  const stages = [...groupBy(periodMatches, (match) => match.stage).entries()]
+  const stages = [...groupBy(countedPeriodMatches, (match) => match.stage).entries()]
     .map(([stage, stageMatches]) => {
       const mainRules = [...countBy(stageMatches, (match) => match.rule).entries()]
         .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
@@ -1103,10 +1108,11 @@ function buildMonthlyReport(month, start, end, matches, xpRecords) {
 }
 
 function summaryForMatches(matches) {
+  const counted = matches.filter(isCountedMatch);
   return {
-    ...scoreMatches(matches),
-    total: matches.length,
-    winRate: matches.length ? Math.round((matches.filter((match) => match.result === "win").length / matches.length) * 100) : null,
+    ...scoreCountedMatches(counted),
+    total: counted.length,
+    winRate: counted.length ? Math.round((counted.filter((match) => match.result === "win").length / counted.length) * 100) : null,
   };
 }
 
@@ -1115,7 +1121,7 @@ function streakStats(matches) {
   let currentLength = 0;
   let maxWinStreak = 0;
   let maxLoseStreak = 0;
-  for (const match of matches.slice().sort(compareRecordedAt)) {
+  for (const match of matches.filter(isCountedMatch).sort(compareRecordedAt)) {
     if (match.result === currentResult) currentLength += 1;
     else {
       currentResult = match.result;
@@ -1125,6 +1131,16 @@ function streakStats(matches) {
     else maxLoseStreak = Math.max(maxLoseStreak, currentLength);
   }
   return { maxLoseStreak, maxWinStreak };
+}
+
+function isCountedMatch(match) {
+  return match.result === "win" || match.result === "lose";
+}
+
+function scoreCountedMatches(matches) {
+  const wins = matches.filter((match) => match.result === "win").length;
+  const losses = matches.filter((match) => match.result === "lose").length;
+  return { losses, wins };
 }
 
 function groupBy(items, keyFn) {
@@ -1338,7 +1354,7 @@ function normalizeState(value) {
 
 function normalizeMatch(match) {
   if (!match || !match.id || !match.rule || !match.stage || !match.weapon) return null;
-  if (match.result !== "win" && match.result !== "lose") return null;
+  if (match.result !== "win" && match.result !== "lose" && match.result !== "disconnect") return null;
 
   return {
     id: String(match.id),

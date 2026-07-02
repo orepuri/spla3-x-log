@@ -724,7 +724,7 @@ function HistoryRow({
         </span>
       </div>
       <div className="history-row-actions">
-        <b className={match.result}>{match.result === "win" ? "WIN" : "LOSE"}</b>
+        <b className={match.result}>{resultLabel(match.result)}</b>
         <button aria-label="編集" disabled={busy} onClick={onEdit} type="button">
           <Pencil aria-hidden="true" size={15} />
         </button>
@@ -767,6 +767,7 @@ function HistoryEdit({
           options={[
             { label: "WIN", value: "win" },
             { label: "LOSE", value: "lose" },
+            { label: "通信切断", value: "disconnect" },
           ]}
           value={match.result}
         />
@@ -1027,6 +1028,12 @@ function unique(values: string[]) {
 
 function ruleName(id: string) {
   return rules.find((rule) => rule.id === id)?.name || id;
+}
+
+function resultLabel(result: MatchResult) {
+  if (result === "win") return "WIN";
+  if (result === "lose") return "LOSE";
+  return "通信切断";
 }
 
 function formatDateTime(iso: string) {

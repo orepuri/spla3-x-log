@@ -476,6 +476,7 @@ test("XP state applies the basic XP delta for every completed score", () => {
     { results: ["lose", "lose", "lose"], expected: 2125 },
     { results: ["win", "lose", "lose", "lose"], expected: 2150 },
     { results: ["win", "win", "lose", "lose", "lose"], expected: 2175 },
+    { results: ["win", "disconnect", "disconnect", "disconnect"], expected: 2150 },
   ];
 
   for (const [index, testCase] of cases.entries()) {
