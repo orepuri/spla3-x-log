@@ -219,8 +219,8 @@ input {
 
 .recent-match-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
+  grid-template-columns: 1fr;
+  gap: 4px;
 }
 
 .recent-match-row {
@@ -229,7 +229,7 @@ input {
   align-items: center;
   gap: 8px;
   border-top: 1px solid var(--line);
-  padding: 8px 2px 2px;
+  padding: 8px 2px 3px;
 }
 
 .recent-match-row b {
