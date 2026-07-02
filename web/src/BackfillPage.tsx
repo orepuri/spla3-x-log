@@ -5,7 +5,7 @@ import { createMatch, createXpRecord, getSettings } from "./api";
 import { defaultSettings, rules, seasons, stages, weapons } from "./catalog";
 import type { AppSettings, MatchResult, RuleId } from "./types";
 
-export function BackfillPage() {
+export function BackfillPage({ embedded = false }: { embedded?: boolean }) {
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ["settings"], queryFn: getSettings });
   const [recordedAt, setRecordedAt] = useState(() => toDateTimeLocal(new Date()));
@@ -98,25 +98,20 @@ export function BackfillPage() {
   }
 
   if (settingsQuery.isLoading) {
+    if (embedded) return <div className="surface loading-state">設定を読み込んでいます</div>;
     return <BackfillStatus message="設定を読み込んでいます" />;
   }
 
   if (settingsQuery.isError) {
+    if (embedded) return <div className="surface loading-state error">設定を読み込めません</div>;
     return <BackfillStatus message="設定を読み込めません" tone="error" />;
   }
 
-  return (
-    <div className="page">
-      <header className="page-header backfill-page-header">
-        <div>
-          <p>日時を指定して記録</p>
-          <h1>過去データ入力</h1>
-        </div>
-        <div className={`record-feedback${error ? " error" : ""}`} aria-live="polite">
-          {error || feedback}
-        </div>
-      </header>
-
+  const content = (
+    <>
+      <div className={`record-feedback backfill-feedback${error ? " error" : ""}`} aria-live="polite">
+        {error || feedback}
+      </div>
       <section className="surface datetime-surface">
         <label className="preview-field datetime-field">
           <span>記録日時</span>
@@ -221,6 +216,20 @@ export function BackfillPage() {
           </form>
         </section>
       </div>
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <div className="page">
+      <header className="page-header backfill-page-header">
+        <div>
+          <p>日時を指定して記録</p>
+          <h1>過去データ入力</h1>
+        </div>
+      </header>
+      {content}
     </div>
   );
 }

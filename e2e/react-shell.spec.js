@@ -7,9 +7,12 @@ test("opens React routes directly and navigates between workflows", async ({ pag
   await expect(page.locator(".sidebar")).toBeVisible();
   await expect(page.locator(".mobile-nav")).toBeHidden();
 
+  await page.getByRole("link", { name: "データ管理" }).click();
+  await expect(page).toHaveURL(/\/data\/archive$/);
+  await expect(page.getByRole("heading", { level: 1, name: "データ管理" })).toBeVisible();
   await page.getByRole("link", { name: "過去入力" }).click();
-  await expect(page).toHaveURL(/\/backfill$/);
-  await expect(page.getByRole("heading", { level: 1, name: "過去データ入力" })).toBeVisible();
+  await expect(page).toHaveURL(/\/data\/backfill$/);
+  await expect(page.getByRole("heading", { level: 1, name: "データ管理" })).toBeVisible();
 
   await page.getByRole("link", { name: "分析" }).click();
   await expect(page).toHaveURL(/\/analysis\/xp$/);
@@ -66,6 +69,6 @@ test("uses bottom navigation on an iPhone viewport", async ({ page }) => {
 
   await expect(page.locator(".sidebar")).toBeHidden();
   await expect(page.locator(".mobile-nav")).toBeVisible();
-  await expect(page.locator(".mobile-nav .nav-link")).toHaveCount(5);
+  await expect(page.locator(".mobile-nav .nav-link")).toHaveCount(4);
   await expect(page.getByRole("heading", { level: 1, name: "試合記録" })).toBeVisible();
 });

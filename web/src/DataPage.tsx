@@ -1,10 +1,35 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, FileJson, Upload, X } from "lucide-react";
+import { Clock3, Download, FileJson, Upload, X } from "lucide-react";
+import { NavLink, Outlet } from "react-router-dom";
 import { getArchive, importArchive } from "./api";
 import type { AppArchive } from "./types";
 
-export function DataPage() {
+export function DataManagementLayout() {
+  return (
+    <div className="page">
+      <header className="page-header data-page-header">
+        <div>
+          <p>補正とバックアップ</p>
+          <h1>データ管理</h1>
+        </div>
+      </header>
+      <nav className="analysis-tabs" aria-label="データ管理メニュー">
+        <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="backfill">
+          <Clock3 aria-hidden="true" size={18} />
+          <span>過去入力</span>
+        </NavLink>
+        <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} to="archive">
+          <FileJson aria-hidden="true" size={18} />
+          <span>Import / Export</span>
+        </NavLink>
+      </nav>
+      <Outlet />
+    </div>
+  );
+}
+
+export function DataPage({ embedded = false }: { embedded?: boolean }) {
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [pendingArchive, setPendingArchive] = useState<AppArchive | null>(null);
@@ -65,18 +90,11 @@ export function DataPage() {
     }
   }
 
-  return (
-    <div className="page">
-      <header className="page-header data-page-header">
-        <div>
-          <p>バックアップと復元</p>
-          <h1>データ管理</h1>
-        </div>
-        <div className={`record-feedback${error ? " error" : ""}`} aria-live="polite">
-          {error || feedback}
-        </div>
-      </header>
-
+  const content = (
+    <>
+      <div className={`record-feedback data-feedback${error ? " error" : ""}`} aria-live="polite">
+        {error || feedback}
+      </div>
       <div className="data-layout">
         <section className="surface data-action">
           <span className="data-action-icon">
@@ -141,6 +159,20 @@ export function DataPage() {
           </section>
         </div>
       ) : null}
+    </>
+  );
+
+  if (embedded) return content;
+
+  return (
+    <div className="page">
+      <header className="page-header data-page-header">
+        <div>
+          <p>バックアップと復元</p>
+          <h1>データ管理</h1>
+        </div>
+      </header>
+      {content}
     </div>
   );
 }

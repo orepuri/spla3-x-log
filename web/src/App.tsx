@@ -1,7 +1,6 @@
 import { Navigate, NavLink, Outlet, Route, Routes } from "react-router-dom";
 import {
   BarChart3,
-  Clock3,
   Database,
   FileText,
   Gamepad2,
@@ -11,15 +10,14 @@ import type { LucideIcon } from "lucide-react";
 import { BackfillPage } from "./BackfillPage";
 import { RecordPage } from "./RecordPage";
 import { AnalysisLayout, HistoryPage, SummaryPage, XpPage } from "./AnalysisPages";
-import { DataPage } from "./DataPage";
+import { DataManagementLayout, DataPage } from "./DataPage";
 import { MonthlyReportPage } from "./ReportsPage";
 
 const primaryNavigation = [
   { to: "/record", label: "試合記録", icon: Swords },
-  { to: "/backfill", label: "過去入力", icon: Clock3 },
   { to: "/analysis/xp", label: "分析", icon: BarChart3 },
   { to: "/reports/monthly", label: "レポート", icon: FileText },
-  { to: "/data", label: "データ", icon: Database },
+  { to: "/data", label: "データ管理", icon: Database },
 ];
 
 export function App() {
@@ -27,8 +25,12 @@ export function App() {
     <Routes>
       <Route element={<AppShell />}>
         <Route path="/record" element={<RecordPage />} />
-        <Route path="/backfill" element={<BackfillPage />} />
-        <Route path="/data" element={<DataPage />} />
+        <Route path="/backfill" element={<Navigate replace to="/data/backfill" />} />
+        <Route path="/data" element={<DataManagementLayout />}>
+          <Route index element={<Navigate replace to="archive" />} />
+          <Route path="backfill" element={<BackfillPage embedded />} />
+          <Route path="archive" element={<DataPage embedded />} />
+        </Route>
         <Route path="/reports">
           <Route index element={<Navigate replace to="monthly" />} />
           <Route path="monthly" element={<MonthlyReportPage />} />

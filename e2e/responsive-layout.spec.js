@@ -13,9 +13,9 @@ for (const viewport of viewports) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await mockResponsiveApis(page);
 
-    for (const route of ["/record", "/backfill", "/analysis/summary?rule=area", "/reports/monthly", "/data"]) {
+    for (const route of ["/record", "/data/backfill", "/analysis/summary?rule=area", "/reports/monthly", "/data/archive"]) {
       await page.goto(route);
-      await expect(page.locator("h1")).toBeVisible();
+      await expect(page.locator("h1").first()).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     }
 
@@ -46,7 +46,7 @@ test("iPad landscape keeps record actions in the initial viewport", async ({ pag
 test("iPhone bottom navigation does not cover the final form action", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockResponsiveApis(page);
-  await page.goto("/backfill");
+  await page.goto("/data/backfill");
   await expect(page.getByRole("button", { name: "XPを保存" })).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await page.waitForTimeout(50);

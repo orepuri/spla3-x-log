@@ -563,6 +563,18 @@ input {
   align-items: center;
 }
 
+.data-feedback,
+.backfill-feedback {
+  min-height: 22px;
+  margin: -4px 0 10px;
+}
+
+.data-feedback:empty,
+.backfill-feedback:empty {
+  min-height: 0;
+  margin-bottom: 0;
+}
+
 .data-layout {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
