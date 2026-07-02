@@ -109,6 +109,11 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
+  if (url.pathname === "/api/analysis/stages") {
+    await handleStagePerformanceRequest(req, res, url, database);
+    return;
+  }
+
   if (url.pathname === "/api/analysis/options") {
     await handleAnalysisOptionsRequest(req, res, database);
     return;
@@ -795,6 +800,66 @@ async function handleAnalysisOptionsRequest(req, res, database) {
     weapons: weaponResult.rows.map((row) => row.value),
     stages: stageResult.rows.map((row) => row.value),
   });
+}
+
+async function handleStagePerformanceRequest(req, res, url, database) {
+  if (!requireDatabase(res, database)) return;
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const season = url.searchParams.get("season");
+  const rule = url.searchParams.get("rule");
+  const start = url.searchParams.get("start");
+  if (!season || !rule) {
+    sendJson(res, 400, { error: "season and rule are required" });
+    return;
+  }
+
+  const values = [season, rule];
+  const where = ["season = $1", "rule = $2"];
+  if (start) {
+    const startDate = new Date(start);
+    if (Number.isNaN(startDate.getTime())) {
+      sendJson(res, 400, { error: "Invalid start date" });
+      return;
+    }
+    values.push(startDate.toISOString());
+    where.push(`recorded_at >= $${values.length}`);
+  }
+
+  const [overallResult, stageResult] = await Promise.all([
+    database.query(
+      `
+        SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE result = 'win')::int AS wins
+        FROM matches
+        WHERE ${where.join(" AND ")}
+      `,
+      values,
+    ),
+    database.query(
+      `
+        SELECT stage, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE result = 'win')::int AS wins
+        FROM matches
+        WHERE ${where.join(" AND ")}
+        GROUP BY stage
+        ORDER BY total DESC, wins DESC, stage ASC
+      `,
+      values,
+    ),
+  ]);
+  sendJson(
+    res,
+    200,
+    {
+      stages: stageResult.rows.map((row) => ({
+        stage: row.stage,
+        ...matchSummaryFromRow(row),
+      })),
+      summary: matchSummaryFromRow(overallResult.rows[0]),
+    },
+  );
 }
 
 async function handleSummaryAnalysisRequest(req, res, url, database) {

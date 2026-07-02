@@ -9,6 +9,8 @@ import type {
   MatchResult,
   MonthlyReport,
   PageResult,
+  StagePerformance,
+  StagePerformanceReport,
   SummaryAnalysis,
   XpRecord,
   XpState,
@@ -67,6 +69,19 @@ export async function getCurrentAnalysis(settings: AppSettings): Promise<Current
   params.append("stage", settings.stageA);
   params.append("stage", settings.stageB);
   return request<CurrentAnalysis>(`/api/analysis/current?${params}`);
+}
+
+export async function getStagePerformance(options: {
+  rule: string;
+  season: string;
+  start?: string;
+}): Promise<StagePerformanceReport> {
+  const params = new URLSearchParams({
+    rule: options.rule,
+    season: options.season,
+  });
+  if (options.start) params.set("start", options.start);
+  return request<StagePerformanceReport>(`/api/analysis/stages?${params}`);
 }
 
 export async function getLatestMatches(limit = 1): Promise<PageResult<Match>> {

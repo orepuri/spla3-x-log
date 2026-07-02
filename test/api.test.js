@@ -574,6 +574,42 @@ test("summary analysis API returns overall and grouped results", async () => {
   assert.equal(result.breakdown.time[0].name, "18");
 });
 
+test("stage performance API summarizes stages for a rule period", async () => {
+  const calls = [];
+  const database = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (!sql.includes("GROUP BY stage")) {
+        return { rows: [{ total: 7, wins: 4 }] };
+      }
+      return {
+        rows: [
+          { stage: "デカライン高架下", total: 5, wins: 3 },
+          { stage: "ユノハナ大渓谷", total: 2, wins: 1 },
+        ],
+      };
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(
+    createRequest("GET", "/api/analysis/stages?season=2026-summer&rule=area&start=2026-06-01T00:00:00.000Z"),
+    response,
+    database,
+  );
+
+  assert.equal(response.status, 200);
+  assert.match(calls[1].sql, /GROUP BY stage/);
+  assert.deepEqual(calls[0].values, ["2026-summer", "area", "2026-06-01T00:00:00.000Z"]);
+  assert.deepEqual(JSON.parse(response.body), {
+    stages: [
+      { losses: 2, stage: "デカライン高架下", total: 5, winRate: 60, wins: 3 },
+      { losses: 1, stage: "ユノハナ大渓谷", total: 2, winRate: 50, wins: 1 },
+    ],
+    summary: { losses: 3, total: 7, winRate: 57, wins: 4 },
+  });
+});
+
 test("monthly report API summarizes matches and XP in a JST month", async () => {
   const calls = [];
   const database = {

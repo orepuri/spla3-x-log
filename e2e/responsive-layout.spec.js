@@ -87,6 +87,15 @@ async function mockResponsiveApis(page) {
         ],
       });
     }
+    if (url.pathname === "/api/analysis/stages") {
+      return json(route, {
+        stages: [
+          { stage: "デカライン高架下", ...summarize(matches.filter((item) => item.stage === "デカライン高架下")) },
+          { stage: "ユノハナ大渓谷", ...summarize(matches.filter((item) => item.stage === "ユノハナ大渓谷")) },
+        ],
+        summary,
+      });
+    }
     if (url.pathname === "/api/xp-state") {
       return json(route, {
         current: { wins: 0, losses: 0 },

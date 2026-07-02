@@ -7,6 +7,15 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   await expect(page.getByLabel("武器")).toHaveValue("スプラシューター");
   await expect(page.getByText("2150.5")).toBeVisible();
   await expect(page.locator(".performance-surface .metric").nth(1).locator("strong")).toHaveText("50%");
+  await expect(page.getByRole("heading", { name: "ステージ別成績" })).toBeVisible();
+  await expect(page.getByLabel("ステージ別成績の期間").getByRole("button", { name: "今シーズン" })).toHaveClass(/active/);
+  await expect(page.locator(".stage-performance-summary")).toContainText("2戦");
+  await expect(page.locator(".stage-performance-summary")).toContainText("1-1");
+  await expect(page.locator(".stage-performance-row")).toHaveCount(0);
+  await page.getByRole("button", { name: "ステージ別を表示" }).click();
+  await expect(page.locator(".stage-performance-row.selected").filter({ hasText: "ユノハナ大渓谷" })).toContainText("50%");
+  await page.getByRole("button", { name: "14日" }).click();
+  await expect.poll(() => api.stagePerformanceStartRequested).toBe(true);
   await expect(page.getByRole("heading", { name: "現在設定の直近10試合" })).toBeVisible();
   await expect(page.locator(".recent-match-row")).toHaveCount(2);
   expect(api.recentMatchStages).toEqual(["ユノハナ大渓谷", "マサバ海峡大橋"]);
@@ -76,6 +85,7 @@ async function mockRecordApis(page, options = {}) {
   const api = {
     matchPostCount: 0,
     recentMatchStages: [],
+    stagePerformanceStartRequested: false,
     matches: [
       match("match-2", "ユノハナ大渓谷", "lose", "2026-06-17T02:00:00.000Z"),
       match("match-1", "ユノハナ大渓谷", "win", "2026-06-17T01:00:00.000Z"),
@@ -112,6 +122,11 @@ async function mockRecordApis(page, options = {}) {
     if (url.pathname === "/api/analysis/current") {
       const stageNames = url.searchParams.getAll("stage");
       return json(route, currentAnalysis(api, stageNames));
+    }
+
+    if (url.pathname === "/api/analysis/stages") {
+      api.stagePerformanceStartRequested = Boolean(url.searchParams.get("start"));
+      return json(route, stagePerformanceReport(api));
     }
 
     if (url.pathname === "/api/xp-state") {
@@ -176,6 +191,18 @@ function currentAnalysis(api, stageNames) {
       stage,
       ...summary(relevant.filter((item) => item.stage === stage)),
     })),
+  };
+}
+
+function stagePerformanceReport(api) {
+  const relevant = api.matches.filter((item) => item.season === api.settings.season && item.rule === api.settings.rule);
+  const stageNames = Array.from(new Set(relevant.map((item) => item.stage)));
+  return {
+    stages: stageNames.map((stage) => ({
+      stage,
+      ...summary(relevant.filter((item) => item.stage === stage)),
+    })),
+    summary: summary(relevant),
   };
 }
 

@@ -59,6 +59,15 @@ export interface CurrentAnalysis {
   stages: Array<MatchSummary & { stage: string }>;
 }
 
+export interface StagePerformance extends MatchSummary {
+  stage: string;
+}
+
+export interface StagePerformanceReport {
+  stages: StagePerformance[];
+  summary: MatchSummary;
+}
+
 export interface PageResult<T> {
   items: T[];
   nextCursor: string | null;

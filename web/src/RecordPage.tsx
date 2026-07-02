@@ -9,17 +9,29 @@ import {
   getLatestMatches,
   getRecentMatches,
   getSettings,
+  getStagePerformance,
   getXpState,
   patchSettings,
 } from "./api";
 import { defaultSettings, rules, seasonName, seasons, stages, weapons } from "./catalog";
-import type { AppSettings, MatchResult, MatchSummary } from "./types";
+import type { AppSettings, MatchResult, MatchSummary, StagePerformance } from "./types";
+
+const stagePerformancePeriods = [
+  { label: "今シーズン", value: "season" },
+  { label: "30日", value: "30" },
+  { label: "14日", value: "14" },
+  { label: "7日", value: "7" },
+] as const;
+
+type StagePerformancePeriod = (typeof stagePerformancePeriods)[number]["value"];
 
 export function RecordPage() {
   const queryClient = useQueryClient();
   const settingsQuery = useQuery({ queryKey: ["settings"], queryFn: getSettings });
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [xp, setXp] = useState("");
+  const [stagePeriod, setStagePeriod] = useState<StagePerformancePeriod>("season");
+  const [showStageDetails, setShowStageDetails] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
 
@@ -46,6 +58,16 @@ export function RecordPage() {
     queryFn: () => getXpState(settings.season, settings.rule),
     queryKey: ["xp-state", settings.season, settings.rule],
   });
+  const stagePerformanceQuery = useQuery({
+    enabled: Boolean(settings.season && settings.rule),
+    queryFn: () =>
+      getStagePerformance({
+        rule: settings.rule,
+        season: settings.season,
+        start: stagePerformanceStart(stagePeriod),
+      }),
+    queryKey: ["stage-performance", settings.season, settings.rule, stagePeriod],
+  });
   const pendingCompletion = xpStateQuery.data?.pending[0] || null;
 
   useEffect(() => {
@@ -57,6 +79,7 @@ export function RecordPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["current-analysis"] }),
       queryClient.invalidateQueries({ queryKey: ["matches"] }),
+      queryClient.invalidateQueries({ queryKey: ["stage-performance"] }),
       queryClient.invalidateQueries({ queryKey: ["xp-state"] }),
     ]);
   };
@@ -292,6 +315,44 @@ export function RecordPage() {
           </form>
         </section>
 
+        <section className="surface stage-performance-surface">
+          <div className="section-heading-row">
+            <SectionHeading icon={BarChart3} title="ステージ別成績" />
+            <div className="period-segment" aria-label="ステージ別成績の期間">
+              {stagePerformancePeriods.map((period) => (
+                <button
+                  className={stagePeriod === period.value ? "active" : ""}
+                  key={period.value}
+                  onClick={() => setStagePeriod(period.value)}
+                  type="button"
+                >
+                  {period.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {stagePerformanceQuery.isLoading ? (
+            <div className="inline-status">ステージ成績を読み込んでいます</div>
+          ) : stagePerformanceQuery.isError ? (
+            <div className="inline-error">ステージ成績を読み込めません</div>
+          ) : (
+            <>
+              <StagePerformanceSummary summary={stagePerformanceQuery.data?.summary} />
+              <div className="stage-performance-toggle">
+                <button onClick={() => setShowStageDetails((current) => !current)} type="button">
+                  {showStageDetails ? "ステージ別を閉じる" : "ステージ別を表示"}
+                </button>
+              </div>
+              {showStageDetails ? (
+                <StagePerformanceTable
+                  rows={stagePerformanceRows(stagePerformanceQuery.data?.stages || [])}
+                  selectedStages={[settings.stageA, settings.stageB]}
+                />
+              ) : null}
+            </>
+          )}
+        </section>
+
         <section className="surface recent-matches-surface">
           <SectionHeading icon={ListChecks} title="現在設定の直近10試合" />
           {recentMatchesQuery.isLoading ? (
@@ -330,6 +391,52 @@ function RecentMatches({ matches }: { matches: Array<{ id: string; recordedAt: s
         ))}
       </div>
     </>
+  );
+}
+
+function StagePerformanceTable({
+  rows,
+  selectedStages,
+}: {
+  rows: StagePerformance[];
+  selectedStages: string[];
+}) {
+  return (
+    <div className="stage-performance-list">
+      {rows.map((row) => {
+        const selected = selectedStages.includes(row.stage);
+        return (
+          <div className={`stage-performance-row${selected ? " selected" : ""}`} key={row.stage}>
+            <strong>{row.stage}</strong>
+            <span>
+              {row.wins}-{row.losses}
+            </span>
+            <b>{formatRate(row)}</b>
+            <small>{row.total}戦</small>
+            {row.total > 0 && row.total < 5 ? <em>データ少</em> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StagePerformanceSummary({ summary }: { summary?: MatchSummary }) {
+  return (
+    <div className="stage-performance-summary">
+      <div>
+        <span>総合試合数</span>
+        <strong>{summary ? `${summary.total}戦` : "-"}</strong>
+      </div>
+      <div>
+        <span>総合勝敗</span>
+        <strong>{summary ? `${summary.wins}-${summary.losses}` : "-"}</strong>
+      </div>
+      <div>
+        <span>総合勝率</span>
+        <strong>{formatRate(summary)}</strong>
+      </div>
+    </div>
   );
 }
 
@@ -514,6 +621,18 @@ function ResultButton({
 
 function formatRate(summary?: MatchSummary) {
   return summary?.winRate === null || summary?.winRate === undefined ? "-" : `${summary.winRate}%`;
+}
+
+function stagePerformanceRows(rows: StagePerformance[]) {
+  const byStage = new Map(rows.map((row) => [row.stage, row]));
+  return stages.map((stage) => byStage.get(stage) || { losses: 0, stage, total: 0, winRate: null, wins: 0 });
+}
+
+function stagePerformanceStart(period: StagePerformancePeriod) {
+  if (period === "season") return undefined;
+  const start = new Date();
+  start.setDate(start.getDate() - Number(period));
+  return start.toISOString();
 }
 
 function formatDateTime(iso: string) {
