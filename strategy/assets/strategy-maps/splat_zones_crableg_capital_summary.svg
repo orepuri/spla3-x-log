@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="ガチエリア / タラポートショッピングパーク / スプラシューター - サマリ">
+  <title>ガチエリア / タラポートショッピングパーク / スプラシューター - サマリ</title>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10 Z" fill="#111"/></marker>
+    <style>
+      .bg { fill: #f8f9fa; }
+      .stage { fill: #e9ecef; stroke: #222; stroke-width: 3; }
+      .objective { fill: #fff; stroke: #111; stroke-width: 4; stroke-dasharray: 9 7; }
+      .goal { fill: #fff; stroke: #555; stroke-width: 2; }
+      .route { fill: none; stroke: #111; stroke-width: 6; marker-end: url(#arrow); }
+      .route2 { fill: none; stroke: #555; stroke-width: 5; stroke-dasharray: 12 8; marker-end: url(#arrow); }
+      .hold { fill: #fff; stroke: #111; stroke-width: 4; }
+      .avoid { fill: none; stroke: #111; stroke-width: 5; stroke-dasharray: 4 8; }
+      .label { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 28px; font-weight: 800; fill: #111; }
+      .small { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 22px; font-weight: 700; fill: #111; }
+      .tiny { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 18px; font-weight: 600; fill: #111; }
+      .objlabel { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 26px; font-weight: 800; fill: #111; }
+      .caption { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 24px; font-weight: 800; fill: #111; }
+      .numcircle { fill: #111; }
+      .num { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 26px; font-weight: 900; fill: #fff; }
+      .note { fill: #fff; stroke: #222; stroke-width: 2; rx: 12; }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1200" height="800"/>
+  <text class="label" x="600" y="52" text-anchor="middle">ガチエリア / タラポートショッピングパーク / スプラシューター - サマリ</text>
+  <text class="tiny" x="600" y="78" text-anchor="middle">自作模式図 / 上=敵陣・下=自陣</text>
+  <path class="stage" d="M220,95 L980,95 L1040,240 L940,360 L1015,505 L925,705 L275,705 L185,505 L260,360 L160,240 Z"/>
+
+  <rect class="objective" x="455" y="325" width="290" height="150" rx="26"/>
+  <text class="objlabel" x="600" y="410" text-anchor="middle">エリア</text>
+
+  <path class="route" d="M520,655 C480,565 500,490 565,440"/>
+  <path class="route2" d="M690,655 C780,560 760,480 655,435"/>
+  <circle class="hold" cx="480" cy="295" r="42"/>
+  <circle class="hold" cx="720" cy="295" r="42"/>
+  <rect class="hold" x="500" y="520" width="200" height="55" rx="18"/>
+  <path class="avoid" d="M450,320 L750,320 L790,455 L740,515 L460,515 L410,455 Z"/>
+<circle class="numcircle" cx="535" cy="440" r="20"/><text class="num" x="535" y="449" text-anchor="middle">1</text>
+<circle class="numcircle" cx="600" cy="400" r="20"/><text class="num" x="600" y="409" text-anchor="middle">2</text>
+<circle class="numcircle" cx="480" cy="295" r="20"/><text class="num" x="480" y="304" text-anchor="middle">3</text>
+<circle class="numcircle" cx="720" cy="295" r="20"/><text class="num" x="720" y="304" text-anchor="middle">4</text>
+<circle class="numcircle" cx="600" cy="548" r="20"/><text class="num" x="600" y="557" text-anchor="middle">5</text>
+
+  <rect class="note" x="55" y="600" width="395" height="155"/>
+  <text class="caption" x="75" y="638">読むポイント</text>
+  <text class="tiny" x="75" y="674">① 初動は中央手前を塗る</text>
+  <text class="tiny" x="75" y="704">② エリア維持、塗り負けたら引く</text>
+  <text class="tiny" x="75" y="734">③④ ウルショで高台をどかす</text>
+  <rect class="note" x="755" y="600" width="390" height="130"/>
+  <text class="caption" x="775" y="638">NG</text>
+  <text class="tiny" x="775" y="674">人数不利でエリア内に残らない</text>
+  <text class="tiny" x="775" y="704">敵高台へ単独で詰めない</text>
+</svg>

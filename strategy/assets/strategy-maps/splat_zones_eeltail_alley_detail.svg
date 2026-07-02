@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="ガチエリア / ゴンズイ地区 / スプラシューター - 詳細">
+  <title>ガチエリア / ゴンズイ地区 / スプラシューター - 詳細</title>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M2,2 L10,6 L2,10 Z" fill="#111"/></marker>
+    <style>
+      .bg { fill: #f8f9fa; }
+      .stage { fill: #e9ecef; stroke: #222; stroke-width: 3; }
+      .objective { fill: #fff; stroke: #111; stroke-width: 4; stroke-dasharray: 9 7; }
+      .goal { fill: #fff; stroke: #555; stroke-width: 2; }
+      .route { fill: none; stroke: #111; stroke-width: 6; marker-end: url(#arrow); }
+      .route2 { fill: none; stroke: #555; stroke-width: 5; stroke-dasharray: 12 8; marker-end: url(#arrow); }
+      .hold { fill: #fff; stroke: #111; stroke-width: 4; }
+      .avoid { fill: none; stroke: #111; stroke-width: 5; stroke-dasharray: 4 8; }
+      .label { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 28px; font-weight: 800; fill: #111; }
+      .small { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 22px; font-weight: 700; fill: #111; }
+      .tiny { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 18px; font-weight: 600; fill: #111; }
+      .objlabel { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 26px; font-weight: 800; fill: #111; }
+      .caption { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 24px; font-weight: 800; fill: #111; }
+      .numcircle { fill: #111; }
+      .num { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 26px; font-weight: 900; fill: #fff; }
+      .note { fill: #fff; stroke: #222; stroke-width: 2; rx: 12; }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1200" height="800"/>
+  <text class="label" x="600" y="52" text-anchor="middle">ガチエリア / ゴンズイ地区 / スプラシューター - 詳細</text>
+  <text class="tiny" x="600" y="78" text-anchor="middle">自作模式図 / 上=敵陣・下=自陣</text>
+  <path class="stage" d="M430,85 L770,85 L850,230 L790,365 L860,510 L770,715 L430,715 L340,510 L410,365 L350,230 Z"/>
+
+  <rect class="objective" x="455" y="325" width="290" height="150" rx="26"/>
+  <text class="objlabel" x="600" y="410" text-anchor="middle">エリア</text>
+
+  <path class="route" d="M520,655 C480,565 500,490 565,440"/>
+  <path class="route2" d="M690,655 C780,560 760,480 655,435"/>
+  <circle class="hold" cx="480" cy="295" r="42"/>
+  <circle class="hold" cx="720" cy="295" r="42"/>
+  <rect class="hold" x="500" y="520" width="200" height="55" rx="18"/>
+  <path class="avoid" d="M450,320 L750,320 L790,455 L740,515 L460,515 L410,455 Z"/>
+<circle class="numcircle" cx="535" cy="440" r="20"/><text class="num" x="535" y="449" text-anchor="middle">1</text>
+<circle class="numcircle" cx="600" cy="400" r="20"/><text class="num" x="600" y="409" text-anchor="middle">2</text>
+<circle class="numcircle" cx="480" cy="295" r="20"/><text class="num" x="480" y="304" text-anchor="middle">3</text>
+<circle class="numcircle" cx="720" cy="295" r="20"/><text class="num" x="720" y="304" text-anchor="middle">4</text>
+<circle class="numcircle" cx="600" cy="548" r="20"/><text class="num" x="600" y="557" text-anchor="middle">5</text>
+
+  <rect class="note" x="45" y="95" width="365" height="220"/>
+  <text class="caption" x="65" y="133">初動・主戦場</text>
+  <text class="tiny" x="65" y="169">エリアが広く塗り負けやすい</text>
+  <text class="tiny" x="65" y="199">初動は塗り＋生存を重視</text>
+  <text class="tiny" x="65" y="229">橋上敵の位置を必ず見る</text>
+  <rect class="note" x="790" y="95" width="365" height="220"/>
+  <text class="caption" x="810" y="133">攻め・抑え</text>
+  <text class="tiny" x="810" y="169">抑えは敵橋上を下げる</text>
+  <text class="tiny" x="810" y="199">ウルショは長射程・橋上へ</text>
+  <text class="tiny" x="810" y="229">敵出口にボムで遅延</text>
+  <rect class="note" x="45" y="555" width="365" height="180"/>
+  <text class="caption" x="65" y="593">打開・防衛</text>
+  <text class="tiny" x="65" y="629">打開は味方SPと同時に</text>
+  <text class="tiny" x="65" y="659">単独塗り返しは避ける</text>
+  <text class="tiny" x="65" y="689">防衛は橋下・横入りを確認</text>
+  <rect class="note" x="790" y="555" width="365" height="180"/>
+  <text class="caption" x="810" y="593">避ける動き</text>
+  <text class="tiny" x="810" y="629">橋上へ正面から挑まない</text>
+  <text class="tiny" x="810" y="659">広いエリア内で孤立しない</text>
+  <text class="tiny" x="810" y="689">塗った後に前を見ないのはNG</text>
+</svg>

@@ -40,8 +40,14 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   const settingLabels = await page.locator(".settings-surface .preview-field > span").allTextContents();
   expect(settingLabels.indexOf("シーズン")).toBeGreaterThan(settingLabels.indexOf("ステージB"));
 
-  await page.getByLabel("ステージB").selectOption("マサバ海峡大橋");
+  await page.getByLabel("ルール").selectOption("area");
   await page.getByLabel("ステージA").selectOption("デカライン高架下");
+  await expect.poll(() => api.settings.rule).toBe("area");
+  await page.getByRole("button", { name: "デカライン高架下の攻略情報を開く" }).click();
+  await expect(page.getByRole("dialog")).toContainText("ガチエリア");
+  await expect(page.getByRole("dialog")).toContainText("中央広場");
+  await page.getByRole("button", { name: "攻略メモを閉じる" }).click();
+  await page.getByLabel("ステージB").selectOption("マサバ海峡大橋");
   await expect.poll(() => api.settings.stageA).toBe("デカライン高架下");
   await expect(page.getByRole("button", { name: "デカライン高架下 WIN" })).toBeVisible();
 
