@@ -7,6 +7,14 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   await expect(page.getByLabel("武器")).toHaveValue("スプラシューター");
   await expect(page.getByText("2150.5")).toBeVisible();
   await expect(page.locator(".performance-surface .metric").nth(1).locator("strong")).toHaveText("50%");
+  await page.getByRole("button", { name: "ユノハナ大渓谷の攻略情報を開く" }).click();
+  await expect(page.getByRole("dialog")).toContainText("スプラシューター");
+  await expect(page.getByRole("dialog")).toContainText("ユノハナ大渓谷");
+  await expect(page.getByRole("img", { name: "ユノハナ大渓谷の簡易図" })).toBeVisible();
+  await expect(page.getByRole("dialog")).toContainText("初動");
+  await expect(page.getByRole("dialog")).toContainText("段差管理");
+  await page.getByRole("button", { name: "攻略メモを閉じる" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "ステージ別成績" })).toBeVisible();
   await expect(page.getByLabel("ステージ別成績の期間").getByRole("button", { name: "今シーズン" })).toHaveClass(/active/);
   await expect(page.locator(".stage-performance-summary")).toContainText("2戦");

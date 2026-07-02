@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BarChart3, ListChecks, RotateCcw, Save, Swords } from "lucide-react";
+import { BarChart3, BookOpen, ListChecks, RotateCcw, Save, Swords, X } from "lucide-react";
 import {
   createMatch,
   createXpRecord,
@@ -14,6 +14,8 @@ import {
   patchSettings,
 } from "./api";
 import { defaultSettings, rules, seasonName, seasons, stages, weapons } from "./catalog";
+import { getSplattershotStageGuide } from "./stageGuides";
+import type { StageGuide } from "./stageGuides";
 import type { AppSettings, MatchResult, MatchSummary, StagePerformance } from "./types";
 
 const stagePerformancePeriods = [
@@ -32,6 +34,7 @@ export function RecordPage() {
   const [xp, setXp] = useState("");
   const [stagePeriod, setStagePeriod] = useState<StagePerformancePeriod>("season");
   const [showStageDetails, setShowStageDetails] = useState(false);
+  const [guideStage, setGuideStage] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
 
@@ -147,6 +150,7 @@ export function RecordPage() {
     () => new Map(analysisQuery.data?.stages.map((item) => [item.stage, item])),
     [analysisQuery.data],
   );
+  const guide = guideStage ? getSplattershotStageGuide(guideStage) : null;
 
   function saveSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
     const next = { ...settings, [key]: value };
@@ -266,6 +270,7 @@ export function RecordPage() {
                 <StageStat loading={analysisQuery.isLoading} name={settings.stageA} summary={stageSummaries.get(settings.stageA)} />
                 <StageStat loading={analysisQuery.isLoading} name={settings.stageB} summary={stageSummaries.get(settings.stageB)} />
               </div>
+              <StageGuideButtons stages={[settings.stageA, settings.stageB]} onOpen={setGuideStage} />
             </>
           )}
         </section>
@@ -370,7 +375,120 @@ export function RecordPage() {
           )}
         </section>
       </div>
+      {guide ? <StageGuideModal guide={guide} onClose={() => setGuideStage(null)} /> : null}
     </div>
+  );
+}
+
+function StageGuideButtons({ onOpen, stages: selectedStages }: { onOpen: (stage: string) => void; stages: string[] }) {
+  const uniqueStages = [...new Set(selectedStages.filter(Boolean))];
+  return (
+    <div className="stage-guide-actions">
+      {uniqueStages.map((stage) => (
+        <button aria-label={`${stage}の攻略情報を開く`} key={stage} onClick={() => onOpen(stage)} type="button">
+          <BookOpen aria-hidden="true" size={15} />
+          <span>{stage}</span>
+          <strong>攻略メモ</strong>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function StageGuideModal({ guide, onClose }: { guide: StageGuide; onClose: () => void }) {
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <div aria-modal="true" className="stage-guide-dialog" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+        <header className="stage-guide-header">
+          <div>
+            <p>{guide.weapon}</p>
+            <h2>{guide.stage}</h2>
+          </div>
+          <button aria-label="攻略メモを閉じる" onClick={onClose} type="button">
+            <X aria-hidden="true" size={18} />
+          </button>
+        </header>
+        <StageGuideMap guide={guide} />
+        <p className="stage-guide-focus">{guide.focus}</p>
+        <div className="stage-guide-tags">
+          {guide.tags.map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+        <div className="stage-guide-grid">
+          <GuideBlock title="初動" items={guide.opener} />
+          <GuideBlock title="立ち位置" items={guide.positions} />
+          <GuideBlock title="打開" items={guide.comeback} />
+          <GuideBlock title="注意" items={guide.cautions} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StageGuideMap({ guide }: { guide: StageGuide }) {
+  const layout = guideMapLayout(guide);
+  return (
+    <div className={`stage-guide-map ${layout.variant}`} aria-label={`${guide.stage}の簡易図`} role="img">
+      <div className="stage-guide-map-zone ally">自陣</div>
+      <div className="stage-guide-map-zone center">中央</div>
+      <div className="stage-guide-map-zone enemy">敵陣</div>
+      <div className="stage-guide-map-lane left">左</div>
+      <div className="stage-guide-map-lane right">右</div>
+      <div className="stage-guide-map-shape main" />
+      <div className="stage-guide-map-shape sub" />
+      {layout.markers.map((marker) => (
+        <div className={`stage-guide-map-marker ${marker.kind}`} key={marker.label} style={{ left: `${marker.x}%`, top: `${marker.y}%` }}>
+          <b>{marker.label}</b>
+          <span>{marker.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function guideMapLayout(guide: StageGuide) {
+  const tags = guide.tags.join(" ");
+  const variant = tags.includes("高台") || tags.includes("高低差") || tags.includes("段差")
+    ? "height"
+    : tags.includes("細") || tags.includes("通路") || tags.includes("狭所")
+      ? "narrow"
+      : tags.includes("広場") || tags.includes("足場")
+        ? "wide"
+        : "standard";
+
+  return {
+    markers: [
+      { kind: "start", label: "初動", text: shortGuideText(guide.opener[0]), x: 24, y: 64 },
+      { kind: "hold", label: "維持", text: shortGuideText(guide.positions[0]), x: 48, y: 38 },
+      { kind: "danger", label: "注意", text: shortGuideText(guide.cautions[0]), x: 70, y: 58 },
+    ],
+    variant,
+  };
+}
+
+function shortGuideText(text: string) {
+  return text.length > 16 ? `${text.slice(0, 16)}...` : text;
+}
+
+function GuideBlock({ items, title }: { items: string[]; title: string }) {
+  return (
+    <section className="stage-guide-block">
+      <h3>{title}</h3>
+      <ul>
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
