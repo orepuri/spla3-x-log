@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="ガチアサリ / リュウグウターミナル / スプラシューター - サマリ模式図">
+  <title>ガチアサリ / リュウグウターミナル / スプラシューター - サマリ模式図</title>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#111"/>
+    </marker>
+    <style>
+      .bg { fill: #f7f7f7; }
+      .stage { fill: #e9ecef; stroke: #222; stroke-width: 3; }
+      .zone { fill: #ffffff; stroke: #555; stroke-width: 2; stroke-dasharray: 8 6; }
+      .route { fill: none; stroke: #111; stroke-width: 6; marker-end: url(#arrow); }
+      .route2 { fill: none; stroke: #555; stroke-width: 5; stroke-dasharray: 12 8; marker-end: url(#arrow); }
+      .danger { fill: #fff; stroke: #111; stroke-width: 4; }
+      .avoid { fill: none; stroke: #111; stroke-width: 5; stroke-dasharray: 4 8; }
+      .label { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 28px; font-weight: 700; fill: #111; }
+      .small { font-size: 22px; font-weight: 600; }
+      .tiny { font-size: 18px; font-weight: 500; }
+      .caption { font-size: 24px; font-weight: 700; }
+      .num { font-family: -apple-system, BlinkMacSystemFont, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif; font-size: 26px; font-weight: 800; fill: #fff; }
+      .numcircle { fill: #111; }
+      .note { fill: #fff; stroke: #222; stroke-width: 2; rx: 12; }
+    </style>
+  </defs>
+  <rect class="bg" x="0" y="0" width="1200" height="800"/>
+
+  <text class="label" x="600" y="52" text-anchor="middle">リュウグウターミナル：サマリ</text>
+  <text class="tiny" x="600" y="78" text-anchor="middle">自作模式図 / 上=敵陣・下=自陣</text>
+
+  <path class="stage" d="M260,95 L940,95 L1020,230 L910,315 L980,465 L900,705 L300,705 L220,465 L290,315 L180,230 Z"/>
+  <rect class="zone" x="455" y="305" width="290" height="190" rx="26"/>
+  <rect class="zone" x="330" y="120" width="190" height="75" rx="18"/>
+  <rect class="zone" x="680" y="605" width="190" height="75" rx="18"/>
+  <rect class="zone" x="505" y="250" width="190" height="65" rx="22"/>
+  <rect class="zone" x="505" y="485" width="190" height="65" rx="22"/>
+  <text class="small" x="425" y="162" text-anchor="middle">敵ゴール側</text>
+  <text class="small" x="775" y="647" text-anchor="middle">自ゴール側</text>
+  <text class="tiny" x="600" y="407" text-anchor="middle">中央橋・低地</text>
+
+  <path class="route" d="M775,645 C690,585 650,520 640,455 C628,380 575,325 500,275"/>
+  <path class="route2" d="M775,645 C830,570 832,490 780,420 C735,360 670,315 605,282"/>
+  <path class="route2" d="M500,275 C455,225 430,190 425,162"/>
+  <circle class="danger" cx="600" cy="278" r="43"/>
+  <circle class="danger" cx="490" cy="390" r="42"/>
+  <path class="avoid" d="M478,330 L720,330 L745,470 L510,470 Z"/>
+<circle class="numcircle" cx="640" cy="455" r="20"/><text class="num" x="640" y="464" text-anchor="middle">1</text><circle class="numcircle" cx="600" cy="278" r="20"/><text class="num" x="600" y="287" text-anchor="middle">2</text><circle class="numcircle" cx="425" cy="162" r="20"/><text class="num" x="425" y="171" text-anchor="middle">3</text><circle class="numcircle" cx="775" cy="645" r="20"/><text class="num" x="775" y="654" text-anchor="middle">4</text><circle class="numcircle" cx="490" cy="390" r="20"/><text class="num" x="490" y="399" text-anchor="middle">5</text>
+  <rect class="note" x="50" y="600" width="395" height="155"/>
+  <text class="caption" x="70" y="638">読むポイント</text>
+  <text class="tiny" x="70" y="674">① 中央低地を塗って貝を管理</text>
+  <text class="tiny" x="70" y="704">② 橋・移動床まわりは孤立しない</text>
+  <text class="tiny" x="70" y="734">③ ゴール前は人数有利で一気に</text>
+
+  <rect class="note" x="760" y="95" width="385" height="145"/>
+  <text class="caption" x="780" y="133">NG</text>
+  <text class="tiny" x="780" y="169">移動床・橋に固執して</text>
+  <text class="tiny" x="780" y="199">横から挟まれる展開を避ける</text>
+</svg>

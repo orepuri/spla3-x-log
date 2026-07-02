@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, BookOpen, ListChecks, RotateCcw, Save, Swords, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   createMatch,
   createXpRecord,
@@ -14,7 +15,7 @@ import {
   patchSettings,
 } from "./api";
 import { defaultSettings, rules, seasonName, seasons, stages, weapons } from "./catalog";
-import { getSplattershotStageGuide } from "./stageGuides";
+import { getStrategyGuide, hasStrategyGuide } from "./stageGuides";
 import type { StageGuide } from "./stageGuides";
 import type { AppSettings, MatchResult, MatchSummary, StagePerformance } from "./types";
 
@@ -150,7 +151,7 @@ export function RecordPage() {
     () => new Map(analysisQuery.data?.stages.map((item) => [item.stage, item])),
     [analysisQuery.data],
   );
-  const guide = guideStage ? getSplattershotStageGuide(guideStage) : null;
+  const guide = guideStage ? getStrategyGuide(settings.rule, guideStage) : null;
 
   function saveSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
     const next = { ...settings, [key]: value };
@@ -270,7 +271,7 @@ export function RecordPage() {
                 <StageStat loading={analysisQuery.isLoading} name={settings.stageA} summary={stageSummaries.get(settings.stageA)} />
                 <StageStat loading={analysisQuery.isLoading} name={settings.stageB} summary={stageSummaries.get(settings.stageB)} />
               </div>
-              <StageGuideButtons stages={[settings.stageA, settings.stageB]} onOpen={setGuideStage} />
+              <StageGuideButtons rule={settings.rule} stages={[settings.stageA, settings.stageB]} onOpen={setGuideStage} />
             </>
           )}
         </section>
@@ -380,8 +381,9 @@ export function RecordPage() {
   );
 }
 
-function StageGuideButtons({ onOpen, stages: selectedStages }: { onOpen: (stage: string) => void; stages: string[] }) {
-  const uniqueStages = [...new Set(selectedStages.filter(Boolean))];
+function StageGuideButtons({ onOpen, rule, stages: selectedStages }: { onOpen: (stage: string) => void; rule: AppSettings["rule"]; stages: string[] }) {
+  const uniqueStages = [...new Set(selectedStages.filter((stage) => stage && hasStrategyGuide(rule, stage)))];
+  if (!uniqueStages.length) return null;
   return (
     <div className="stage-guide-actions">
       {uniqueStages.map((stage) => (
@@ -409,74 +411,43 @@ function StageGuideModal({ guide, onClose }: { guide: StageGuide; onClose: () =>
       <div aria-modal="true" className="stage-guide-dialog" onMouseDown={(event) => event.stopPropagation()} role="dialog">
         <header className="stage-guide-header">
           <div>
-            <p>{guide.weapon}</p>
+            <p>{guide.weapon} / {guide.ruleName}</p>
             <h2>{guide.stage}</h2>
           </div>
           <button aria-label="攻略メモを閉じる" onClick={onClose} type="button">
             <X aria-hidden="true" size={18} />
           </button>
         </header>
-        <StageGuideMap guide={guide} />
-        <p className="stage-guide-focus">{guide.focus}</p>
-        <div className="stage-guide-tags">
-          {guide.tags.map((tag) => (
-            <span key={tag}>{tag}</span>
-          ))}
+        <div className="stage-guide-summary-layout">
+          <img alt={`${guide.stage} ${guide.ruleName}の攻略サマリ図`} src={guide.assets.summaryImage} />
+          <div>
+            <p className="stage-guide-focus">{guide.summary.focus}</p>
+            <div className="stage-guide-tags">
+              <span>{guide.weaponKit.sub}</span>
+              <span>{guide.weaponKit.special}</span>
+            </div>
+          </div>
         </div>
         <div className="stage-guide-grid">
-          <GuideBlock title="初動" items={guide.opener} />
-          <GuideBlock title="立ち位置" items={guide.positions} />
-          <GuideBlock title="打開" items={guide.comeback} />
-          <GuideBlock title="注意" items={guide.cautions} />
+          <GuideBlock title="初動" items={[guide.summary.opening]} />
+          <GuideBlock title="打開" items={[guide.summary.comeback]} />
+          <GuideBlock title="防衛" items={[guide.summary.defense]} />
+          <GuideBlock title="NG" items={[guide.summary.ng]} />
         </div>
+        <div className="stage-guide-checklist">
+          <h3>チェックリスト</h3>
+          <ul>
+            {guide.summary.checklist.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+        <Link className="stage-guide-detail-link" to={`/strategy/${encodeURIComponent(guide.id)}`}>
+          詳細を見る
+        </Link>
       </div>
     </div>
   );
-}
-
-function StageGuideMap({ guide }: { guide: StageGuide }) {
-  const layout = guideMapLayout(guide);
-  return (
-    <div className={`stage-guide-map ${layout.variant}`} aria-label={`${guide.stage}の簡易図`} role="img">
-      <div className="stage-guide-map-zone ally">自陣</div>
-      <div className="stage-guide-map-zone center">中央</div>
-      <div className="stage-guide-map-zone enemy">敵陣</div>
-      <div className="stage-guide-map-lane left">左</div>
-      <div className="stage-guide-map-lane right">右</div>
-      <div className="stage-guide-map-shape main" />
-      <div className="stage-guide-map-shape sub" />
-      {layout.markers.map((marker) => (
-        <div className={`stage-guide-map-marker ${marker.kind}`} key={marker.label} style={{ left: `${marker.x}%`, top: `${marker.y}%` }}>
-          <b>{marker.label}</b>
-          <span>{marker.text}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function guideMapLayout(guide: StageGuide) {
-  const tags = guide.tags.join(" ");
-  const variant = tags.includes("高台") || tags.includes("高低差") || tags.includes("段差")
-    ? "height"
-    : tags.includes("細") || tags.includes("通路") || tags.includes("狭所")
-      ? "narrow"
-      : tags.includes("広場") || tags.includes("足場")
-        ? "wide"
-        : "standard";
-
-  return {
-    markers: [
-      { kind: "start", label: "初動", text: shortGuideText(guide.opener[0]), x: 24, y: 64 },
-      { kind: "hold", label: "維持", text: shortGuideText(guide.positions[0]), x: 48, y: 38 },
-      { kind: "danger", label: "注意", text: shortGuideText(guide.cautions[0]), x: 70, y: 58 },
-    ],
-    variant,
-  };
-}
-
-function shortGuideText(text: string) {
-  return text.length > 16 ? `${text.slice(0, 16)}...` : text;
 }
 
 function GuideBlock({ items, title }: { items: string[]; title: string }) {

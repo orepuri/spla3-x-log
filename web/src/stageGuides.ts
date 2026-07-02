@@ -1,207 +1,370 @@
-export interface StageGuide {
-  cautions: string[];
-  comeback: string[];
-  focus: string;
-  opener: string[];
-  positions: string[];
-  stage: string;
-  tags: string[];
-  weapon: string;
+import nameroDetailImage from "../../strategy/assets/strategy-maps/namero_metalworks_clam_detail.svg";
+import nameroSummaryImage from "../../strategy/assets/strategy-maps/namero_metalworks_clam_summary.svg";
+import ryuguDetailImage from "../../strategy/assets/strategy-maps/ryugu_terminal_clam_detail.svg";
+import ryuguSummaryImage from "../../strategy/assets/strategy-maps/ryugu_terminal_clam_summary.svg";
+import type { RuleId } from "./types";
+
+interface StrategyAssets {
+  detailImage: string;
+  summaryImage: string;
 }
 
-const baseGuide = {
-  cautions: ["人数不利で正面に残らない", "塗り返しの前にクリアリングを入れる"],
-  comeback: ["ボムで敵の足場を削ってから前に出る", "味方のスペシャルに合わせて中央を取り返す"],
-  opener: ["中央の足場を先に塗る", "初動は無理にキルを狙わず退路を残す"],
-  positions: ["短射程に詰められない距離で中央を維持する", "カバーに入りやすい横位置を使う"],
-  tags: ["中央管理", "塗り維持"],
-  weapon: "スプラシューター",
-};
+interface StrategySummary {
+  checklist: string[];
+  comeback: string;
+  defense: string;
+  focus: string;
+  ng: string;
+  opening: string;
+}
 
-const stageFocus: Record<string, Pick<StageGuide, "focus" | "opener" | "positions" | "cautions" | "tags">> = {
-  ユノハナ大渓谷: {
-    cautions: ["中央の段差下に長居しない", "高台から見られる正面ルートを単独で通らない"],
-    focus: "中央の段差を塗りで動かし、左右の高台に圧をかけ続ける。",
-    opener: ["中央手前を塗って味方の足場を作る", "敵高台にボムを置いて初動の射線をずらす"],
-    positions: ["中央右の段差付近", "自陣高台から中央へ降りる手前"],
-    tags: ["段差管理", "高台圧"],
-  },
-  ゴンズイ地区: {
-    cautions: ["橋上で孤立しない", "下段からの裏取りを放置しない"],
-    focus: "橋上の制圧と下段の警戒を切り替え、人数有利で一気に前へ詰める。",
-    opener: ["橋上に入る前に左右下段を塗る", "敵の長射程にボムで位置変更を迫る"],
-    positions: ["中央橋の手前", "左右下段の出口を見られる位置"],
-    tags: ["橋上", "裏取り警戒"],
-  },
-  ヤガラ市場: {
-    cautions: ["中央の網周りで足場を失わない", "敵陣側に入りすぎて復帰を遅らせない"],
-    focus: "中央の細い通路を塗りで止め、横展開から短時間でキルを作る。",
-    opener: ["中央通路を塗って退路を作る", "敵の進行方向にボムを置く"],
-    positions: ["中央手前の広場", "左右通路の入口"],
-    tags: ["通路封鎖", "横展開"],
-  },
-  マテガイ放水路: {
-    cautions: ["中央奥へ単独で降りない", "坂下から撃ち上げる時間を短くする"],
-    focus: "坂と高台の有利不利を意識して、塗りながら中央を押し上げる。",
-    opener: ["中央坂の手前を塗る", "高台下にボムを入れて敵を動かす"],
-    positions: ["中央坂上の手前", "左右の壁裏"],
-    tags: ["坂管理", "射線切り"],
-  },
-  ナメロウ金属: {
-    cautions: ["中央の見通しが良い場所で撃ち合い続けない", "敵高台への無理な突入を避ける"],
-    focus: "広い中央を塗りで広げ、金網周りはボムで先に安全確認する。",
-    opener: ["中央広場を大きく塗る", "敵の進行ルートにボムを転がす"],
-    positions: ["中央手前の遮蔽物横", "金網手前の塗れる床"],
-    tags: ["広場塗り", "金網警戒"],
-  },
-  マサバ海峡大橋: {
-    cautions: ["細い中央で正面から押し合わない", "左右の高台から挟まれる前に引く"],
-    focus: "中央の細いラインを塗りで切り、左右から挟む動きを優先する。",
-    opener: ["中央手前を塗って相手の進行を遅らせる", "橋の側面にボムを置いて退路を切る"],
-    positions: ["中央手前の壁横", "左右高台へ戻れる位置"],
-    tags: ["細道管理", "挟み"],
-  },
-  キンメダイ美術館: {
-    cautions: ["回転床のタイミングで孤立しない", "中央で背後を取られない"],
-    focus: "回転床の変化に合わせて、中央と高台の主導権を取り直す。",
-    opener: ["中央床を塗って回転後の足場を作る", "高台下にボムを置く"],
-    positions: ["中央手前の高台", "回転床の出口"],
-    tags: ["回転床", "高台維持"],
-  },
-  "マヒマヒリゾート＆スパ": {
-    cautions: ["水没しやすい縁で長く撃ち合わない", "水位変化後のルート確認を忘れない"],
-    focus: "水位変化まで無理をせず、足場が広がったら素早く前線を上げる。",
-    opener: ["中央の安全な床を先に塗る", "狭い入口にボムを置く"],
-    positions: ["中央手前の段差上", "水位変化後の横ルート"],
-    tags: ["水位変化", "足場管理"],
-  },
-  海女美術大学: {
-    cautions: ["中央高台に固執しすぎない", "左右の坂から詰められる前に下がる"],
-    focus: "中央高台を取った後、左右の坂を塗って相手の入り口を狭くする。",
-    opener: ["中央高台の手前を塗る", "敵高台下にボムを入れる"],
-    positions: ["中央高台の手前", "左右坂の入口"],
-    tags: ["中央高台", "坂警戒"],
-  },
-  チョウザメ造船: {
-    cautions: ["可動床で退路を失わない", "中央奥へ降りる時は味方位置を見る"],
-    focus: "可動床のタイミングに合わせて中央を取り返し、敵の横展開を早めに止める。",
-    opener: ["中央手前を広めに塗る", "可動床先にボムを投げて様子を見る"],
-    positions: ["中央手前の段差", "左右通路の出口"],
-    tags: ["可動床", "横展開"],
-  },
-  ザトウマーケット: {
-    cautions: ["中央広場で射線を受け続けない", "敵の横抜けを見落とさない"],
-    focus: "中央広場を塗り続け、左右の通路からカバーしやすい形を作る。",
-    opener: ["中央手前を塗って足場を広げる", "左右通路にボムを置く"],
-    positions: ["中央手前の台", "左右通路の曲がり角"],
-    tags: ["広場管理", "通路警戒"],
-  },
-  スメーシーワールド: {
-    cautions: ["中央で長射程に見られ続けない", "足場の薄い状態で突っ込まない"],
-    focus: "中央の足場を塗り固め、回転する地形を使って射線を切る。",
-    opener: ["中央の塗れる床を先に確保する", "敵の高台へボムで圧をかける"],
-    positions: ["中央手前の遮蔽物", "左右の段差下"],
-    tags: ["足場作り", "射線切り"],
-  },
-  クサヤ温泉: {
-    cautions: ["中央下で囲まれない", "敵高台へ一直線に入らない"],
-    focus: "中央下の塗りを切らさず、左右の高台へ圧を分散させる。",
-    opener: ["中央下の足場を塗る", "左右高台下へボムを投げる"],
-    positions: ["中央手前の壁裏", "左右高台へ戻れる段差"],
-    tags: ["中央下", "高台圧"],
-  },
-  ヒラメが丘団地: {
-    cautions: ["壁移動中に孤立しない", "上を取られたまま正面で撃ち合わない"],
-    focus: "壁と屋上ルートを使って高さを取り、短時間で相手の背後を突く。",
-    opener: ["中央手前と壁を塗る", "屋上へ上がる前にボムで確認する"],
-    positions: ["中央屋上の手前", "壁を使って引ける位置"],
-    tags: ["壁移動", "高低差"],
-  },
-  ナンプラー遺跡: {
-    cautions: ["中央奥に入りすぎない", "左右の抜けルートを無視しない"],
-    focus: "中央の遮蔽物を使って距離を詰め、左右の通路を塗りで止める。",
-    opener: ["中央手前を塗り広げる", "左右通路にボムを入れる"],
-    positions: ["中央遮蔽物の横", "左右通路の入口"],
-    tags: ["遮蔽物", "通路管理"],
-  },
-  マンタマリア号: {
-    cautions: ["マスト周りで射線を浴び続けない", "下段からの奇襲を放置しない"],
-    focus: "中央の柱で射線を切りながら、下段と高台を交互に見る。",
-    opener: ["中央手前を塗る", "柱裏や下段入口にボムを置く"],
-    positions: ["中央柱の手前", "下段出口を見られる位置"],
-    tags: ["柱管理", "下段警戒"],
-  },
-  タラポートショッピングパーク: {
-    cautions: ["中央の開けた場所で止まらない", "敵の横展開を見逃さない"],
-    focus: "中央の広場を塗りで維持し、左右の段差からカバーを作る。",
-    opener: ["中央手前を広く塗る", "左右段差下へボムを入れる"],
-    positions: ["中央手前の段差", "左右の売り場横"],
-    tags: ["広場維持", "段差カバー"],
-  },
-  コンブトラック: {
-    cautions: ["中央の細い通路で詰まらない", "敵陣側で囲まれる前に引く"],
-    focus: "曲がり角をボムで確認し、塗りで相手の進行ルートを細くする。",
-    opener: ["中央手前のカーブを塗る", "曲がり角の先にボムを置く"],
-    positions: ["中央カーブの手前", "左右の高台入口"],
-    tags: ["曲がり角", "ルート制限"],
-  },
-  タカアシ経済特区: {
-    cautions: ["高台から降りた後の退路を失わない", "長射程の射線に正面から入らない"],
-    focus: "高低差を使って射線を切り、下段の塗りで相手の前進を止める。",
-    opener: ["中央手前の下段を塗る", "敵高台下へボムを投げる"],
-    positions: ["自陣高台の出口", "中央下段の壁裏"],
-    tags: ["高低差", "射線管理"],
-  },
-  オヒョウ海運: {
-    cautions: ["細い通路でボムを踏まない", "中央奥へ単独で入り込まない"],
-    focus: "中央の細い通路を塗りで確保し、敵の復帰ルートに圧をかける。",
-    opener: ["中央通路を塗る", "敵の進行先へボムを転がす"],
-    positions: ["中央通路の手前", "左右の箱裏"],
-    tags: ["通路確保", "箱裏"],
-  },
-  バイガイ亭: {
-    cautions: ["中央下で挟まれない", "高台の敵を放置したまま前に出ない"],
-    focus: "中央の低地を塗りで支え、高台の敵をボムで動かしてから詰める。",
-    opener: ["中央下の足場を作る", "高台下にボムを入れる"],
-    positions: ["中央下の壁裏", "自陣高台から降りる手前"],
-    tags: ["低地管理", "高台処理"],
-  },
-  ネギトロ炭鉱: {
-    cautions: ["中央の段差下で人数不利を続けない", "左右の抜けを見落とさない"],
-    focus: "中央の高低差を使って、相手の進行を塗りとボムで分断する。",
-    opener: ["中央手前を塗って段差上を確認する", "左右通路にボムを投げる"],
-    positions: ["中央段差の手前", "左右通路を見られる壁横"],
-    tags: ["段差", "分断"],
-  },
-  カジキ空港: {
-    cautions: ["動く床に乗る前に周囲確認をする", "中央で足場を失ったまま撃ち合わない"],
-    focus: "動く床の移動先を先に塗り、中央の展開速度で相手を上回る。",
-    opener: ["中央手前と動線を塗る", "動く床の出口にボムを置く"],
-    positions: ["中央手前の遮蔽物", "動く床から戻れる位置"],
-    tags: ["動く床", "展開速度"],
-  },
-  リュウグウターミナル: {
-    cautions: ["左右の高低差で挟まれない", "中央の細い足場で粘りすぎない"],
-    focus: "中央の足場を切らさず、左右の段差から短く圧をかける。",
-    opener: ["中央手前を塗る", "左右段差上へボムを投げる"],
-    positions: ["中央手前の床", "左右段差へ引ける位置"],
-    tags: ["足場維持", "段差圧"],
-  },
-  デカライン高架下: {
-    cautions: ["中央の狭い場所で正面衝突を続けない", "横道からの奇襲を放置しない"],
-    focus: "中央の狭さを利用してボムで相手を動かし、横道からカバーを入れる。",
-    opener: ["中央入口を塗る", "横道の曲がり角へボムを置く"],
-    positions: ["中央入口の壁横", "横道へ戻れる位置"],
-    tags: ["狭所", "横道カバー"],
-  },
-};
+interface StrategyOpeningDetail {
+  avoid: string;
+  firstGoal: string;
+  route: string;
+}
 
-export function getSplattershotStageGuide(stage: string): StageGuide {
-  const override = stageFocus[stage];
-  return {
-    ...baseGuide,
-    ...override,
-    focus: override?.focus || `${stage}では中央の塗り維持と、味方のカバーに入れる距離を優先する。`,
-    stage,
+interface StrategyPosition {
+  id: string;
+  label: string;
+  purpose: string;
+  risk: string;
+}
+
+interface StrategyComeback {
+  steps: string[];
+}
+
+interface StrategyDefense {
+  priorities: string[];
+}
+
+interface StrategySpecialUsage {
+  trizooka: {
+    attack: string;
+    comeback: string;
+    defense: string;
   };
+}
+
+interface StrategyRoute {
+  description: string;
+  id: string;
+  label: string;
+}
+
+interface StrategyMapAnnotation {
+  label: string;
+  number: number;
+  x: number;
+  y: number;
+}
+
+interface StrategyDetail {
+  advantage: string[];
+  basicPlan: string;
+  comeback: StrategyComeback;
+  defense: StrategyDefense;
+  disadvantage: string[];
+  enemyThreats: string[];
+  keyPositions: StrategyPosition[];
+  mapAnnotations: StrategyMapAnnotation[];
+  mistakes: string[];
+  neutral: string[];
+  opening: StrategyOpeningDetail;
+  routes: StrategyRoute[];
+  specialUsage: StrategySpecialUsage;
+}
+
+export interface StageGuide {
+  assets: StrategyAssets;
+  detail: StrategyDetail;
+  id: string;
+  mapOrientation: string;
+  rule: RuleId;
+  ruleName: string;
+  stage: string;
+  summary: StrategySummary;
+  weapon: string;
+  weaponKit: {
+    special: string;
+    sub: string;
+  };
+}
+
+export const strategyAssumptions = {
+  mapOrientation: "画像は上が敵陣、下が自陣。左右は自陣から敵陣を見た方向。",
+  note: "内容はスプラシューター向けの実戦メモ例。ステージ形状は模式化しており、公式マップの転載ではありません。",
+  playerRole: "前中衛。塗りと対面で中央を作り、人数有利後にアサリ投入へ移る。",
+  summaryUsage: "試合前に10〜20秒で確認する。詳細は復習・研究用。",
+};
+
+export const stageGuides: StageGuide[] = [
+  {
+    assets: {
+      detailImage: nameroDetailImage,
+      summaryImage: nameroSummaryImage,
+    },
+    detail: {
+      advantage: [
+        "敵2落ち以上か、敵後衛をウルショで下げたら前へ出る。",
+        "パワー持ちは最後尾ではなく、護衛の少し後ろ。通常アサリ持ちは追加投入を意識する。",
+        "ゴールを開けた後は前に出すぎず、敵復帰ルートを見て投入時間を伸ばす。",
+      ],
+      basicPlan: "ナメロウ金属は中央通過時に射線が通りやすく、単独侵入が止められやすい。スプラシューターは中央塗り・短中距離対面・キューバンで足場制限を担当し、ゴール前は人数有利かウルショ始動で入る。",
+      comeback: {
+        steps: [
+          "自陣側・中央手前を塗ってウルショを溜める。",
+          "敵の高台、ゴール前待機、パワー持ち周辺をウルショでどかす。",
+          "味方と同時に中央へ入り、落とした敵の貝を拾わせない。",
+        ],
+      },
+      defense: {
+        priorities: [
+          "自ゴール前の塗りを維持する。",
+          "パワー持ちのルートを先読みしてキューバンを置く。",
+          "ゴールが開いたら後続の通常アサリ持ちを優先的に落とす。",
+          "敵のスーパージャンプ先を見たら即ボム・メインで処理する。",
+        ],
+      },
+      disadvantage: [
+        "パワー持ちで孤立したら無理に保持せず、味方が拾える場所に捨てる判断も持つ。",
+        "敵にゴール前を取られたら、自陣塗りとスペシャルを優先して即突撃しない。",
+      ],
+      enemyThreats: [
+        "長射程：中央・グレート・ゴール前への射線。ウルショか味方の圧に合わせる。",
+        "ブラスター：段差・通路での待ち。曲がり角にキューバンを置いてから入る。",
+        "ローラー/筆：ゴール前潜伏とジャンプ先作り。自ゴール前の塗り維持で拒否する。",
+      ],
+      keyPositions: [
+        {
+          id: "mid_left",
+          label: "中央左手前",
+          purpose: "初動で立つ場所。塗り・貝回収・敵の中央入りを止める。",
+          risk: "長射程やブラスターに見られると苦しいので、長く顔を出さない。",
+        },
+        {
+          id: "enemy_goal_front",
+          label: "敵ゴール前",
+          purpose: "人数有利後に一気に詰める場所。キューバンで足場を奪ってから投げる。",
+          risk: "単独で入ると復帰組に挟まれやすい。",
+        },
+        {
+          id: "own_goal_front",
+          label: "自ゴール前",
+          purpose: "防衛の最終ライン。塗り返しとジャンプ投げ拒否を優先。",
+          risk: "ゴール下だけ見ていると横抜け・後続投入を通す。",
+        },
+      ],
+      mapAnnotations: [
+        { label: "初動・打開の通過点", number: 1, x: 0.43, y: 0.56 },
+        { label: "中央の貝管理", number: 2, x: 0.49, y: 0.36 },
+        { label: "攻めのゴール前", number: 3, x: 0.6, y: 0.19 },
+        { label: "自陣塗り・打開準備", number: 4, x: 0.5, y: 0.69 },
+        { label: "防衛で見る左抜け", number: 5, x: 0.34, y: 0.32 },
+        { label: "防衛で見る右抜け", number: 6, x: 0.69, y: 0.32 },
+      ],
+      mistakes: [
+        "パワーを早く作りすぎて位置バレしたまま中央で倒される。",
+        "ゴールを開けたあと、全員が投げに集中して敵復帰ルートを見ない。",
+        "防衛でパワー持ちだけを追い、通常アサリの追加投入を止められない。",
+      ],
+      neutral: [
+        "中央の貝を拾い切るより、敵に拾わせない塗りを優先する。",
+        "7個止めで味方に1個もらう、または味方へ渡してパワー化する。",
+        "キューバンは中央の通路・敵の待機位置・ゴール前に置き、相手を動かす。",
+      ],
+      opening: {
+        avoid: "初動からパワーアサリを作って位置を晒し、正面からゴール前へ行く動き。",
+        firstGoal: "中央塗りと貝数確認。敵が2落ち以上なら前へ、拮抗なら7個止めで待つ。",
+        route: "自陣左寄り→中央手前→中央左。貝を拾いながら中央を塗る。",
+      },
+      routes: [
+        {
+          description: "中央左手前へ入り、貝回収と塗りで主導権を作る。",
+          id: "opening_left",
+          label: "初動左寄り",
+        },
+        {
+          description: "敵が落ちた後にだけ中央を越える。キューバンで足場を奪う。",
+          id: "attack_main_after_pick",
+          label: "人数有利後の正面寄り",
+        },
+        {
+          description: "劣勢時は自陣側に下がり、ウルショ準備とゴール前塗りを優先する。",
+          id: "defensive_reset",
+          label: "自陣リセット",
+        },
+      ],
+      specialUsage: {
+        trizooka: {
+          attack: "ゴール前・敵高台・護衛を先に狙う。1発目で敵を下げ、2〜3発目で投げ込みルートを作る。",
+          comeback: "中央に入る直前に撃つ。人数不利のまま雑に撃たない。",
+          defense: "敵パワー持ち、ジャンプ先、ゴール前の護衛に撃つ。",
+        },
+      },
+    },
+    id: "clam_blitz_namero_metalworks_splattershot",
+    mapOrientation: strategyAssumptions.mapOrientation,
+    rule: "clam",
+    ruleName: "ガチアサリ",
+    stage: "ナメロウ金属",
+    summary: {
+      checklist: [
+        "7個止めで位置バレ時間を短くする",
+        "攻める前に敵高台・ゴール前をウルショでどかす",
+        "防衛時はパワー持ちより後続の追加投入も見る",
+      ],
+      comeback: "自陣側を塗ってウルショを準備。中央正面に単独で出ず、敵高台・ゴール前・パワー持ち周辺にウルショを合わせて中央を取り返す。",
+      defense: "自ゴール前の塗りを維持し、横から入る敵とジャンプ先を先に潰す。パワー持ちだけでなく、後続の通常アサリ持ちを止める。",
+      focus: "中央の貝を管理しつつ、7個止めで位置バレを避ける。人数有利かウルショで敵高台・ゴール前をどかしてから一気に入る。",
+      ng: "パワーアサリを持って単独で正面突破しない。人数不利で中央グレート・橋まわりに居続けない。",
+      opening: "初動は中央左寄りを塗りながら貝回収。即パワー化せず、7個前後で味方の位置を見る。長射程が見ている正面ルートで無理に撃ち合わない。",
+    },
+    weapon: "スプラシューター",
+    weaponKit: {
+      special: "ウルトラショット",
+      sub: "キューバンボム",
+    },
+  },
+  {
+    assets: {
+      detailImage: ryuguDetailImage,
+      summaryImage: ryuguSummaryImage,
+    },
+    detail: {
+      advantage: [
+        "敵2落ち、または中央橋の敵を下げたタイミングでゴール側へ入る。",
+        "パワー作成はゴール近くで行い、位置バレ時間を短くする。",
+        "ゴールを開けたら一人は前を見て、残りが通常アサリを入れる形を意識する。",
+      ],
+      basicPlan: "リュウグウターミナルは中央橋・低地・移動床まわりで視線とルートが切り替わりやすい。スプラシューターは中央の塗り維持、横入りの察知、ウルショでの高台・ゴール前排除を担当する。",
+      comeback: {
+        steps: [
+          "自陣ゴール側・中央手前を塗ってウルショを溜める。",
+          "中央橋上、移動床出口、敵ゴール前待機にウルショを撃つ。",
+          "味方が中央に入るタイミングで前へ出て、落ちた貝を回収させない。",
+        ],
+      },
+      defense: {
+        priorities: [
+          "自ゴール前と左右抜けルートを塗り返す。",
+          "敵パワー持ちの進行先にキューバンを置く。",
+          "ゴールが開いたら通常アサリ持ちとジャンプ先を優先処理する。",
+          "敵の抜けを追いすぎて中央の追加投入を空けない。",
+        ],
+      },
+      disadvantage: [
+        "中央橋を取り返す前にゴールへ抜けようとしない。",
+        "敵パワー持ちが見えたら、進行方向の塗りを奪って足を止める。",
+      ],
+      enemyThreats: [
+        "機動力の高い筆・マニューバー：左右抜けとゴール前ジャンプ先作り。",
+        "長射程：橋・低地を見下ろす位置。ウルショで下げてから中央へ。",
+        "ブラスター：橋出口・段差周辺。曲がり角で長く撃ち合わない。",
+      ],
+      keyPositions: [
+        {
+          id: "center_bridge",
+          label: "中央橋・低地",
+          purpose: "貝管理と人数有利作りの主戦場。",
+          risk: "複数方向から撃たれやすいので、味方位置なしで粘らない。",
+        },
+        {
+          id: "enemy_goal_side",
+          label: "敵ゴール側",
+          purpose: "人数有利後に詰める場所。近くでパワー化して位置バレを短くする。",
+          risk: "単独潜伏は読まれると弱い。通常アサリの後続がないと点が伸びない。",
+        },
+        {
+          id: "own_goal_side",
+          label: "自ゴール側",
+          purpose: "防衛と打開の起点。塗り返しでジャンプ投げと潜伏を拒否。",
+          risk: "ゴール前だけ見ていると中央から追加アサリを運ばれる。",
+        },
+      ],
+      mapAnnotations: [
+        { label: "初動・中央手前", number: 1, x: 0.53, y: 0.57 },
+        { label: "中央橋・貝管理", number: 2, x: 0.5, y: 0.35 },
+        { label: "攻めのゴール前", number: 3, x: 0.35, y: 0.2 },
+        { label: "自ゴール前防衛", number: 4, x: 0.65, y: 0.81 },
+        { label: "左抜け警戒", number: 5, x: 0.25, y: 0.34 },
+        { label: "右抜け警戒", number: 6, x: 0.75, y: 0.36 },
+        { label: "打開準備", number: 7, x: 0.5, y: 0.68 },
+      ],
+      mistakes: [
+        "中央低地で長く撃ち合い、貝もスペシャルも失う。",
+        "パワー持ちで橋・移動床上に滞在して位置バレし続ける。",
+        "ゴールを開けた後に全員がゴール前へ寄り、敵復帰と中央追加を見ない。",
+      ],
+      neutral: [
+        "中央低地を塗り、貝が自インク上に見える状態を作る。",
+        "味方が6〜7個なら渡してパワー化、逆に自分は7個止めで待つ。",
+        "キューバンは橋の出口、移動床の降り口、ゴール前の待機位置に置く。",
+      ],
+      opening: {
+        avoid: "移動床や橋上でパワーを持ったまま止まり、全員に位置を見られて落とされる動き。",
+        firstGoal: "中央で貝を集めつつ、敵がどちらのサイドから入ってくるかを見る。",
+        route: "自陣ゴール側→中央手前→中央橋・低地。まず広く塗って貝の位置を見えるようにする。",
+      },
+      routes: [
+        {
+          description: "中央低地を塗り、貝と敵の横入りを確認する。",
+          id: "opening_center",
+          label: "初動中央手前",
+        },
+        {
+          description: "敵が落ちたあとにゴール近くでパワー化し、位置バレ時間を短くする。",
+          id: "side_entry_after_pick",
+          label: "人数有利後のゴール側侵入",
+        },
+        {
+          description: "防衛時は左右抜けを消し、ジャンプ先を塗りで拒否する。",
+          id: "defensive_reset",
+          label: "自ゴール側リセット",
+        },
+      ],
+      specialUsage: {
+        trizooka: {
+          attack: "中央橋・敵ゴール前・護衛に撃ち、投げ込み前の安全時間を作る。",
+          comeback: "自陣高めから中央橋上の敵へ。味方の復帰前に撃ち切らない。",
+          defense: "敵パワー持ち、ジャンプ先、ゴール前の密集に撃つ。",
+        },
+      },
+    },
+    id: "clam_blitz_ryugu_terminal_splattershot",
+    mapOrientation: strategyAssumptions.mapOrientation,
+    rule: "clam",
+    ruleName: "ガチアサリ",
+    stage: "リュウグウターミナル",
+    summary: {
+      checklist: [
+        "中央橋・低地で孤立しない",
+        "パワー化はできるだけゴール近くで行う",
+        "防衛時は左右抜けとジャンプ先を塗りで消す",
+      ],
+      comeback: "自陣高めを塗ってウルショを準備。中央橋の敵、ゴール前待機、パワー持ち周辺をどかしてから味方と入る。",
+      defense: "自ゴール前の塗りを維持し、左右の抜けとジャンプ先を警戒。ゴールが開いたら通常アサリ持ちの追加投入を最優先で止める。",
+      focus: "中央橋・低地の貝を管理し、移動床まわりで孤立しない。パワー化はゴールに近づいてから行い、位置バレ時間を短くする。",
+      ng: "パワー持ちで移動床・橋上に長く滞在しない。ゴール前単独潜伏だけで打開しようとしない。",
+      opening: "初動は中央手前を広く塗り、貝を拾いながら敵の横入りを確認。橋・移動床に固執せず、撃ち合いが長引くなら一度下がる。",
+    },
+    weapon: "スプラシューター",
+    weaponKit: {
+      special: "ウルトラショット",
+      sub: "キューバンボム",
+    },
+  },
+];
+
+export function getStrategyGuide(rule: RuleId, stage: string) {
+  return stageGuides.find((guide) => guide.rule === rule && guide.stage === stage) || null;
+}
+
+export function getStrategyGuideById(id: string | undefined) {
+  return stageGuides.find((guide) => guide.id === id) || null;
+}
+
+export function hasStrategyGuide(rule: RuleId, stage: string) {
+  return Boolean(getStrategyGuide(rule, stage));
 }

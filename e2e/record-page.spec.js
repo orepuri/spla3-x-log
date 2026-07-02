@@ -7,14 +7,7 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   await expect(page.getByLabel("武器")).toHaveValue("スプラシューター");
   await expect(page.getByText("2150.5")).toBeVisible();
   await expect(page.locator(".performance-surface .metric").nth(1).locator("strong")).toHaveText("50%");
-  await page.getByRole("button", { name: "ユノハナ大渓谷の攻略情報を開く" }).click();
-  await expect(page.getByRole("dialog")).toContainText("スプラシューター");
-  await expect(page.getByRole("dialog")).toContainText("ユノハナ大渓谷");
-  await expect(page.getByRole("img", { name: "ユノハナ大渓谷の簡易図" })).toBeVisible();
-  await expect(page.getByRole("dialog")).toContainText("初動");
-  await expect(page.getByRole("dialog")).toContainText("段差管理");
-  await page.getByRole("button", { name: "攻略メモを閉じる" }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "ユノハナ大渓谷の攻略情報を開く" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "ステージ別成績" })).toBeVisible();
   await expect(page.getByLabel("ステージ別成績の期間").getByRole("button", { name: "今シーズン" })).toHaveClass(/active/);
   await expect(page.locator(".stage-performance-summary")).toContainText("2戦");
@@ -28,9 +21,26 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   await expect(page.locator(".recent-match-row")).toHaveCount(2);
   expect(api.recentMatchStages).toEqual(["ユノハナ大渓谷", "マサバ海峡大橋"]);
 
+  await page.getByLabel("ルール").selectOption("clam");
+  await page.getByLabel("ステージA").selectOption("ナメロウ金属");
+  await page.getByLabel("ステージB").selectOption("リュウグウターミナル");
+  await expect.poll(() => api.settings.rule).toBe("clam");
+  await expect.poll(() => api.settings.stageA).toBe("ナメロウ金属");
+  await page.getByRole("button", { name: "ナメロウ金属の攻略情報を開く" }).click();
+  await expect(page.getByRole("dialog")).toContainText("スプラシューター");
+  await expect(page.getByRole("dialog")).toContainText("ガチアサリ");
+  await expect(page.getByRole("dialog")).toContainText("中央の貝を管理");
+  await expect(page.getByRole("img", { name: "ナメロウ金属 ガチアサリの攻略サマリ図" })).toBeVisible();
+  await page.getByRole("link", { name: "詳細を見る" }).click();
+  await expect(page).toHaveURL(/\/strategy\/clam_blitz_namero_metalworks_splattershot$/);
+  await expect(page.getByRole("heading", { name: "ナメロウ金属 攻略詳細" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "ナメロウ金属 ガチアサリの攻略詳細図" })).toBeVisible();
+  await page.getByRole("link", { name: "試合記録へ" }).click();
+
   const settingLabels = await page.locator(".settings-surface .preview-field > span").allTextContents();
   expect(settingLabels.indexOf("シーズン")).toBeGreaterThan(settingLabels.indexOf("ステージB"));
 
+  await page.getByLabel("ステージB").selectOption("マサバ海峡大橋");
   await page.getByLabel("ステージA").selectOption("デカライン高架下");
   await expect.poll(() => api.settings.stageA).toBe("デカライン高架下");
   await expect(page.getByRole("button", { name: "デカライン高架下 WIN" })).toBeVisible();

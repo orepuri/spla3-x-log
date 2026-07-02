@@ -12,6 +12,7 @@ import { RecordPage } from "./RecordPage";
 import { AnalysisLayout, HistoryPage, SummaryPage, XpPage } from "./AnalysisPages";
 import { DataManagementLayout, DataPage } from "./DataPage";
 import { MonthlyReportPage } from "./ReportsPage";
+import { StrategyDetailPage } from "./StrategyPage";
 
 const primaryNavigation = [
   { to: "/record", label: "試合記録", icon: Swords },
@@ -25,6 +26,7 @@ export function App() {
     <Routes>
       <Route element={<AppShell />}>
         <Route path="/record" element={<RecordPage />} />
+        <Route path="/strategy/:id" element={<StrategyDetailPage />} />
         <Route path="/backfill" element={<Navigate replace to="/data/backfill" />} />
         <Route path="/data" element={<DataManagementLayout />}>
           <Route index element={<Navigate replace to="archive" />} />
