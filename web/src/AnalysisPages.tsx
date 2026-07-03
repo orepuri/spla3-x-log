@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { NavLink, Outlet, useOutletContext, useSearchParams } from "react-router-dom";
+import { Link, NavLink, Outlet, useOutletContext, useSearchParams } from "react-router-dom";
 import {
   getMatches,
   getAnalysisOptions,
@@ -29,6 +29,7 @@ import {
 } from "./api";
 import { rules, seasonName, seasons, stages, weapons } from "./catalog";
 import { StageSelect } from "./StageSelect";
+import { getStrategyGuide } from "./stageGuides";
 import type {
   AnalysisFilters,
   AnalysisOptions,
@@ -162,7 +163,7 @@ export function SummaryPage() {
           <div className="analysis-breakdown-grid">
             <Breakdown title="シーズン別" items={summary.breakdown.season} formatName={seasonName} />
             <Breakdown title="ルール別" items={summary.breakdown.rule} formatName={ruleName} />
-            <Breakdown title="ステージ別" items={summary.breakdown.stage} />
+            <Breakdown strategyRule={filters.rule as RuleId | "all"} title="ステージ別" items={summary.breakdown.stage} />
             <Breakdown title="武器別" items={summary.breakdown.weapon} />
             <Breakdown title="時間帯別" items={summary.breakdown.time} formatName={(value) => `${value}時`} />
           </div>
@@ -673,10 +674,12 @@ function Metric({ label, value }: { label: string; value: string }) {
 function Breakdown({
   formatName = (value) => value,
   items,
+  strategyRule,
   title,
 }: {
   formatName?: (value: string) => string;
   items: BreakdownItem[];
+  strategyRule?: RuleId | "all";
   title: string;
 }) {
   return (
@@ -687,7 +690,10 @@ function Breakdown({
           {items.map((item) => (
             <div className="analysis-breakdown-row" key={item.name}>
               <div>
-                <strong>{formatName(item.name)}</strong>
+                <div className="analysis-breakdown-title">
+                  <strong>{formatName(item.name)}</strong>
+                  {strategyRule ? <StrategyLink rule={strategyRule} stage={item.name} /> : null}
+                </div>
                 <span>
                   {item.winRate ?? 0}% / {item.total}戦
                 </span>
@@ -722,6 +728,7 @@ function HistoryRow({
         <strong>
           {match.stage} / {ruleName(match.rule)}
         </strong>
+        <StrategyLink rule={match.rule} stage={match.stage} />
         <span>
           {match.weapon} · {seasonName(match.season)} · {formatDateTime(match.recordedAt)}
         </span>
@@ -736,6 +743,16 @@ function HistoryRow({
         </button>
       </div>
     </div>
+  );
+}
+
+function StrategyLink({ rule, stage }: { rule: RuleId | "all"; stage: string }) {
+  const guide = rule === "all" ? null : getStrategyGuide(rule, stage);
+  if (!guide) return null;
+  return (
+    <Link className="strategy-inline-link" to={`/strategy/${encodeURIComponent(guide.id)}`}>
+      攻略
+    </Link>
   );
 }
 

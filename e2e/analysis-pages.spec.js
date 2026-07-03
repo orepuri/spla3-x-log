@@ -9,6 +9,9 @@ test("keeps summary filters in the URL and renders grouped results", async ({ pa
   await expect(page).toHaveURL(/rule=area/);
   await expect.poll(() => api.lastSummaryRule).toBe("area");
   await expect(page.locator(".analysis-breakdown-row strong").filter({ hasText: "デカライン高架下" })).toBeVisible();
+  await page.locator(".analysis-breakdown-row").filter({ hasText: "デカライン高架下" }).getByRole("link", { name: "攻略" }).click();
+  await expect(page).toHaveURL(/\/strategy\/splat_zones_urchin_underpass_splattershot$/);
+  await page.goto("/analysis/summary?rule=area");
   await expect(page.getByLabel("シーズン").locator('option[value="2025-winter"]')).toHaveCount(1);
   await expect(page.getByLabel("武器").locator('option[value="custom-weapon"]')).toHaveCount(1);
 
@@ -29,6 +32,9 @@ test("pages through history and edits one match", async ({ page }) => {
   await page.goto("/analysis/history");
 
   await expect(page.locator(".react-history-row")).toHaveCount(15);
+  await page.locator(".react-history-row").first().getByRole("link", { name: "攻略" }).click();
+  await expect(page).toHaveURL(/\/strategy\/splat_zones_urchin_underpass_splattershot$/);
+  await page.goto("/analysis/history");
   await page.getByRole("button", { name: "次へ" }).click();
   await expect(page.getByText("2ページ")).toBeVisible();
   await expect(page.locator(".react-history-row")).toHaveCount(3);
