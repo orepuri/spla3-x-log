@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" role="img" aria-label="ガチエリア / 海女美術大学 サマリ">
+  <rect width="720" height="360" rx="18" fill="#f8faf7"/>
+  <rect x="24" y="48" width="672" height="276" rx="24" fill="#ffffff" stroke="#d8ded7" stroke-width="3"/>
+  <path d="M 360 66 L 360 310" stroke="#d8ded7" stroke-width="3" stroke-dasharray="8 9"/>
+  <path d="M 120 264 C 230 208, 300 180, 360 180 C 420 140, 490 150, 600 96" fill="none" stroke="#138e9d" stroke-width="18" stroke-linecap="round" opacity="0.18"/>
+  <rect x="274" y="138" width="172" height="84" rx="18" fill="#b7e229" opacity="0.28"/>
+  <rect x="48" y="278" width="120" height="30" rx="15" fill="#edf7f7"/>
+  <text x="108" y="298" text-anchor="middle" font-size="14" font-weight="700" fill="#5d7812">自陣</text>
+  <rect x="552" y="52" width="120" height="30" rx="15" fill="#fdebf3"/>
+  <text x="612" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#9d2e62">敵陣</text>
+  <text x="28" y="28" font-size="18" font-weight="800" fill="#17201c">ガチエリア / 海女美術大学 サマリ</text>
+  <g><circle cx="360" cy="202" r="16" fill="#138e9d"/><text x="360" y="207" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">1</text><text x="382" y="207" font-size="13" font-weight="700" fill="#17201c">初動・打開の通過点</text></g>
+<g><circle cx="360" cy="180" r="16" fill="#138e9d"/><text x="360" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">2</text><text x="382" y="185" font-size="13" font-weight="700" fill="#17201c">主戦場・オブジェクト</text></g>
+<g><circle cx="288" cy="130" r="16" fill="#138e9d"/><text x="288" y="135" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">3</text><text x="310" y="135" font-size="13" font-weight="700" fill="#17201c">左側の警戒地点</text></g>
+<g><circle cx="432" cy="130" r="16" fill="#138e9d"/><text x="432" y="135" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">4</text><text x="454" y="135" font-size="13" font-weight="700" fill="#17201c">右側の警戒地点</text></g>
+<g><circle cx="360" cy="248" r="16" fill="#138e9d"/><text x="360" y="253" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">5</text><text x="382" y="253" font-size="13" font-weight="700" fill="#17201c">自陣側の打開起点</text></g>
+</svg>
