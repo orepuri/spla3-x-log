@@ -68,6 +68,17 @@ export interface StagePerformanceReport {
   summary: MatchSummary;
 }
 
+export interface StageDetailRow {
+  rules: Partial<Record<RuleId, MatchSummary>>;
+  stage: string;
+  total: MatchSummary;
+}
+
+export interface StageDetailsReport {
+  stages: StageDetailRow[];
+  summary: MatchSummary;
+}
+
 export interface PageResult<T> {
   items: T[];
   nextCursor: string | null;

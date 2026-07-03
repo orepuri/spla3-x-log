@@ -1634,6 +1634,10 @@ input {
   grid-template-columns: repeat(2, minmax(0, 220px));
 }
 
+.stage-filter-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .analysis-metrics {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
@@ -1793,6 +1797,100 @@ input {
   border: 1px solid #e4e8e8;
   background: #f7f9f9;
   color: #a0a8a8;
+}
+
+.stage-detail-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: flex-start;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.stage-detail-toolbar .preview-field {
+  width: min(280px, 100%);
+}
+
+.stage-detail-toolbar button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  padding: 8px 12px;
+  font-weight: 800;
+}
+
+.stage-detail-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.stage-detail-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+}
+
+.stage-detail-table th,
+.stage-detail-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.stage-detail-table thead th {
+  background: #f5f9f9;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.stage-detail-table tbody th {
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+
+.stage-detail-table tbody tr.is-empty th,
+.stage-detail-table tbody tr.is-empty td {
+  color: #a0a8a8;
+}
+
+.stage-detail-table tr:last-child th,
+.stage-detail-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.stage-detail-table th:first-child,
+.stage-detail-table td:first-child {
+  text-align: left;
+}
+
+.stage-detail-table th button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.stage-detail-table th:first-child button {
+  justify-content: flex-start;
+}
+
+.stage-detail-no-guide {
+  color: #a0a8a8;
+  font-weight: 800;
 }
 
 .analysis-bar {
@@ -2618,8 +2716,14 @@ input {
   .analysis-breakdown-grid,
   .strategy-index-row,
   .history-edit-fields,
+  .stage-filter-row,
   .xp-period-controls {
     grid-template-columns: 1fr;
+  }
+
+  .stage-detail-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .report-metrics,

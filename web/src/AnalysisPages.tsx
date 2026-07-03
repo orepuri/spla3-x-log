@@ -22,6 +22,7 @@ import {
   getAnalysisOptions,
   deleteMatch,
   getPreferences,
+  getStageDetails,
   getSummaryAnalysis,
   getXpRecords,
   updateMatch,
@@ -38,7 +39,9 @@ import type {
   BreakdownItem,
   Match,
   MatchResult,
+  MatchSummary,
   RuleId,
+  StageDetailRow,
   XpRecord,
 } from "./types";
 
@@ -58,12 +61,14 @@ const defaultPreferences: AnalysisPreferences = {
 };
 
 const xpHistoryPageSize = 15;
+type StageScope = RuleId | "total";
+type StageSortKey = keyof MatchSummary | "stage";
 
 const analysisNavigation = [
   { to: "/analysis/xp", label: "XP", icon: BarChart3 },
   { to: "/analysis/summary", label: "集計", icon: LayoutDashboard },
   { to: "/analysis/history", label: "履歴", icon: History },
-  { to: "/analysis/strategy", label: "攻略", icon: BookOpen },
+  { to: "/analysis/strategy", label: "ステージ", icon: BookOpen },
 ];
 
 type AnalysisContext = {
@@ -176,38 +181,200 @@ export function SummaryPage() {
 }
 
 export function StrategyGuideIndexPage() {
-  const guideStages = new Set(stageGuides.map((guide) => guide.stage));
+  const { filters, options, setFilter } = useAnalysisContext();
+  const [selectedScope, setSelectedScope] = useState<StageScope>("total");
+  const [sortKey, setSortKey] = useState<StageSortKey>("total");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const stageDetailsQuery = useQuery({
+    queryFn: () => getStageDetails(filters),
+    queryKey: ["analysis-stage-details", filters.season, filters.weapon, filters.time],
+  });
+  const stageRows = useMemo(() => {
+    const data = stageDetailsQuery.data?.stages || [];
+    const byStage = new Map(data.map((row) => [row.stage, row]));
+    return [...stages, ...data.map((row) => row.stage).filter((stage) => !stages.includes(stage as (typeof stages)[number]))]
+      .map((stage) => byStage.get(stage) || emptyStageDetailRow(stage))
+      .sort((left, right) => compareStageRows(left, right, selectedScope, sortKey, sortDirection));
+  }, [selectedScope, sortDirection, sortKey, stageDetailsQuery.data?.stages]);
+  const scopeSummary = selectedScope === "total" ? stageDetailsQuery.data?.summary : summaryForScope(stageRows, selectedScope);
+
+  function changeSort(nextKey: StageSortKey) {
+    if (sortKey === nextKey) {
+      setSortDirection((current) => (current === "desc" ? "asc" : "desc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDirection(nextKey === "stage" ? "asc" : "desc");
+  }
 
   return (
     <section className="surface analysis-surface">
       <div className="section-heading-row">
-        <SectionHeading icon={BookOpen} title="攻略" />
-        <span className="strategy-index-count">{stageGuides.length}件</span>
+        <SectionHeading icon={BookOpen} title="ステージ別成績" />
+        <span className="strategy-index-count">攻略 {stageGuides.length}件</span>
       </div>
-      <p className="strategy-index-lead">ステージごとに、登録済みのルール別攻略へ移動できます。</p>
-      <div className="strategy-index-list">
-        {stages.map((stage) => (
-          <div className={`strategy-index-row${guideStages.has(stage) ? "" : " is-empty"}`} key={stage}>
-            <strong>{stage}</strong>
-            <div className="strategy-index-rules">
-              {rules.map((rule) => {
-                const guide = getStrategyGuide(rule.id, stage);
-                return guide ? (
-                  <Link className="strategy-rule-link" key={rule.id} to={`/strategy/${guide.id}`}>
-                    {rule.name}
-                  </Link>
-                ) : (
-                  <span className="strategy-rule-missing" key={rule.id}>
-                    {rule.name}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      <p className="strategy-index-lead">表示する対象を選んで、ステージごとの勝敗を比較できます。攻略がある組み合わせは詳細へ移動できます。</p>
+      <AnalysisFilters filters={filters} options={options} setFilter={setFilter} showTime stageMode />
+      <div className="metric-row analysis-metrics">
+        <Metric label="勝率" value={scopeSummary?.winRate === null || !scopeSummary ? "-" : `${scopeSummary.winRate}%`} />
+        <Metric label="勝ち" value={scopeSummary ? String(scopeSummary.wins) : "-"} />
+        <Metric label="負け" value={scopeSummary ? String(scopeSummary.losses) : "-"} />
+        <Metric label="試合数" value={scopeSummary ? String(scopeSummary.total) : "-"} />
       </div>
+      <div className="stage-detail-toolbar">
+        <FilterSelect
+          label="表示"
+          onChange={(value) => setSelectedScope(value as StageScope)}
+          options={[{ label: "総合", value: "total" }, ...rules.map((rule) => ({ label: rule.name, value: rule.id }))]}
+          value={selectedScope}
+        />
+      </div>
+      {stageDetailsQuery.isLoading ? (
+        <Loading />
+      ) : stageDetailsQuery.isError ? (
+        <ErrorState />
+      ) : (
+        <StageDetailTable
+          rows={stageRows}
+          selectedScope={selectedScope}
+          sortDirection={sortDirection}
+          sortKey={sortKey}
+          onSort={changeSort}
+        />
+      )}
     </section>
   );
+}
+
+function StageDetailTable({
+  onSort,
+  rows,
+  selectedScope,
+  sortDirection,
+  sortKey,
+}: {
+  onSort: (key: StageSortKey) => void;
+  rows: StageDetailRow[];
+  selectedScope: StageScope;
+  sortDirection: "asc" | "desc";
+  sortKey: StageSortKey;
+}) {
+  const selectedRule = selectedScope === "total" ? null : rules.find((rule) => rule.id === selectedScope) || null;
+
+  return (
+    <div className="stage-detail-table-wrap">
+      <table className="stage-detail-table">
+        <thead>
+          <tr>
+            <StageSortHeader active={sortKey === "stage"} direction={sortDirection} label="ステージ" onClick={() => onSort("stage")} />
+            <StageSortHeader active={sortKey === "total"} direction={sortDirection} label="試合数" onClick={() => onSort("total")} numeric />
+            <StageSortHeader active={sortKey === "wins"} direction={sortDirection} label="勝ち" onClick={() => onSort("wins")} numeric />
+            <StageSortHeader active={sortKey === "losses"} direction={sortDirection} label="負け" onClick={() => onSort("losses")} numeric />
+            <StageSortHeader active={sortKey === "winRate"} direction={sortDirection} label="勝率" onClick={() => onSort("winRate")} numeric />
+            <th>攻略</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const summary = selectedScope === "total" ? row.total : row.rules[selectedScope] || emptyMatchSummary();
+            const guide = selectedRule ? getStrategyGuide(selectedRule.id, row.stage) : null;
+            return (
+              <tr className={summary.total ? "" : "is-empty"} key={row.stage}>
+                <th scope="row">{row.stage}</th>
+                <td>{summary.total}</td>
+                <td>{summary.wins}</td>
+                <td>{summary.losses}</td>
+                <td>{summary.winRate === null ? "-" : `${summary.winRate}%`}</td>
+                <td>
+                  {guide ? (
+                    <Link className="strategy-rule-link" to={`/strategy/${guide.id}`}>
+                      攻略
+                    </Link>
+                  ) : (
+                    <span className="stage-detail-no-guide">-</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function StageSortHeader({
+  active,
+  direction,
+  label,
+  numeric = false,
+  onClick,
+}: {
+  active: boolean;
+  direction: "asc" | "desc";
+  label: string;
+  numeric?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <th className={numeric ? "numeric" : undefined}>
+      <button aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : undefined} onClick={onClick} type="button">
+        {label}
+        {active ? <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span> : null}
+      </button>
+    </th>
+  );
+}
+
+function compareStageRows(left: StageDetailRow, right: StageDetailRow, selectedScope: StageScope, sortKey: StageSortKey, direction: "asc" | "desc") {
+  if (sortKey === "stage") {
+    return direction === "asc" ? left.stage.localeCompare(right.stage, "ja") : right.stage.localeCompare(left.stage, "ja");
+  }
+
+  const leftValue = stageSortValue(left, selectedScope, sortKey);
+  const rightValue = stageSortValue(right, selectedScope, sortKey);
+  const primary = leftValue - rightValue;
+  if (primary !== 0) return direction === "desc" ? -primary : primary;
+  return right.total.total - left.total.total || left.stage.localeCompare(right.stage, "ja");
+}
+
+function stageSortValue(row: StageDetailRow, selectedScope: StageScope, metric: keyof MatchSummary) {
+  const summary = selectedScope === "total" ? row.total : row.rules[selectedScope] || emptyMatchSummary();
+  return Number(summary[metric] ?? -1);
+}
+
+function summaryForScope(rows: StageDetailRow[], scope: RuleId): MatchSummary {
+  const summary = rows.reduce(
+    (current, row) => {
+      const ruleSummary = row.rules[scope] || emptyMatchSummary();
+      current.wins += ruleSummary.wins;
+      current.losses += ruleSummary.losses;
+      current.total += ruleSummary.total;
+      return current;
+    },
+    emptyMatchSummary(),
+  );
+  return {
+    ...summary,
+    winRate: summary.total ? Math.round((summary.wins / summary.total) * 100) : null,
+  };
+}
+
+function emptyStageDetailRow(stage: string): StageDetailRow {
+  return {
+    rules: {},
+    stage,
+    total: emptyMatchSummary(),
+  };
+}
+
+function emptyMatchSummary(): MatchSummary {
+  return {
+    losses: 0,
+    total: 0,
+    winRate: null,
+    wins: 0,
+  };
 }
 
 export function HistoryPage() {
@@ -607,16 +774,18 @@ function AnalysisFilters({
   options,
   setFilter,
   showTime = false,
+  stageMode = false,
   xpOnly = false,
 }: {
   filters: AnalysisFilters;
   options: AnalysisOptions;
   setFilter: (key: keyof AnalysisFilters, value: string) => void;
   showTime?: boolean;
+  stageMode?: boolean;
   xpOnly?: boolean;
 }) {
   return (
-    <div className={`filter-row${xpOnly ? " xp-filter-row" : ""}`}>
+    <div className={`filter-row${xpOnly ? " xp-filter-row" : ""}${stageMode ? " stage-filter-row" : ""}`}>
       <FilterSelect
         label="シーズン"
         onChange={(value) => setFilter("season", value)}
@@ -625,26 +794,30 @@ function AnalysisFilters({
       />
       {!xpOnly ? (
         <>
-          <FilterSelect
-            label="ルール"
-            onChange={(value) => setFilter("rule", value)}
-            options={[{ label: "すべて", value: "all" }, ...options.rules.map((item) => ({ label: ruleName(item), value: item }))]}
-            value={filters.rule}
-          />
+          {!stageMode ? (
+            <FilterSelect
+              label="ルール"
+              onChange={(value) => setFilter("rule", value)}
+              options={[{ label: "すべて", value: "all" }, ...options.rules.map((item) => ({ label: ruleName(item), value: item }))]}
+              value={filters.rule}
+            />
+          ) : null}
           <FilterSelect
             label="武器"
             onChange={(value) => setFilter("weapon", value)}
             options={[{ label: "すべて", value: "all" }, ...options.weapons.map((item) => ({ label: item, value: item }))]}
             value={filters.weapon}
           />
-          <StageSelect
-            allowAll
-            label="ステージ"
-            onChange={(value) => setFilter("stage", value)}
-            options={options.stages.map((item) => ({ label: item, value: item }))}
-            rule={filters.rule as RuleId | "all"}
-            value={filters.stage}
-          />
+          {!stageMode ? (
+            <StageSelect
+              allowAll
+              label="ステージ"
+              onChange={(value) => setFilter("stage", value)}
+              options={options.stages.map((item) => ({ label: item, value: item }))}
+              rule={filters.rule as RuleId | "all"}
+              value={filters.stage}
+            />
+          ) : null}
           {showTime ? (
             <FilterSelect
               label="時間帯"
@@ -673,7 +846,7 @@ function FilterSelect({
 }: {
   label: string;
   onChange: (value: string) => void;
-  options: Array<{ label: string; value: string }>;
+  options: ReadonlyArray<{ label: string; value: string }>;
   value: string;
 }) {
   return (

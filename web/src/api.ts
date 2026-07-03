@@ -9,6 +9,7 @@ import type {
   MatchResult,
   MonthlyReport,
   PageResult,
+  StageDetailsReport,
   StagePerformance,
   StagePerformanceReport,
   SummaryAnalysis,
@@ -185,6 +186,15 @@ export async function getXpRecords(options: {
 
 export async function getSummaryAnalysis(filters: AnalysisFilters): Promise<SummaryAnalysis> {
   return request<SummaryAnalysis>(`/api/analysis/summary?${filterParams(filters)}`);
+}
+
+export async function getStageDetails(filters: AnalysisFilters): Promise<StageDetailsReport> {
+  const params = filterParams({
+    ...filters,
+    rule: "all",
+    stage: "all",
+  });
+  return request<StageDetailsReport>(`/api/analysis/stage-details?${params}`);
 }
 
 export async function getAnalysisOptions(): Promise<AnalysisOptions> {

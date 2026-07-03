@@ -27,16 +27,25 @@ test("opens XP as the default analysis tab", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 2, name: "XP推移" })).toBeVisible();
 });
 
-test("lists strategy links from the analysis strategy tab", async ({ page }) => {
+test("lists stage results and strategy links from the analysis stage tab", async ({ page }) => {
   await mockAnalysisApis(page);
   await page.goto("/analysis/strategy");
 
-  await expect(page.getByRole("heading", { level: 2, name: "攻略" })).toBeVisible();
-  const row = page.locator(".strategy-index-row").filter({ hasText: "デカライン高架下" });
-  await expect(row.getByRole("link", { name: "ガチエリア" })).toBeVisible();
-  await expect(row.locator(".strategy-rule-missing").filter({ hasText: "ガチアサリ" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "ステージ別成績" })).toBeVisible();
+  await expect(page.getByLabel("ルール")).toHaveCount(0);
+  await expect(page.getByLabel("表示")).toHaveValue("total");
+  const row = page.getByRole("row", { name: /デカライン高架下/ });
+  await expect(row).toContainText("9");
+  await expect(row).toContainText("6");
+  await expect(row).toContainText("3");
+  await expect(row).toContainText("67%");
+  await expect(row.getByText("-")).toBeVisible();
 
-  await row.getByRole("link", { name: "ガチエリア" }).click();
+  await page.getByLabel("表示").selectOption("area");
+  await expect(row.getByRole("link", { name: "攻略" })).toBeVisible();
+  await page.getByRole("button", { name: /勝率/ }).click();
+
+  await row.getByRole("link", { name: "攻略" }).click();
   await expect(page).toHaveURL(/\/strategy\/splat_zones_urchin_underpass_splattershot$/);
 });
 
@@ -173,6 +182,10 @@ async function mockAnalysisApis(page) {
       return json(route, summaryPayload(api.matches));
     }
 
+    if (url.pathname === "/api/analysis/stage-details") {
+      return json(route, stageDetailsPayload(api.matches));
+    }
+
     if (url.pathname === "/api/matches" && method === "GET") {
       const start = Number(url.searchParams.get("cursor") || 0);
       const limit = Number(url.searchParams.get("limit") || 25);
@@ -237,6 +250,22 @@ function summaryPayload(matches) {
       weapon: [{ name: "スプラシューター", ...summary }],
       time: [{ name: "18-24", ...summary }],
     },
+  };
+}
+
+function stageDetailsPayload(matches) {
+  const rows = new Map();
+  for (const item of matches) {
+    if (item.result !== "win" && item.result !== "lose") continue;
+    if (!rows.has(item.stage)) rows.set(item.stage, { rules: {}, stage: item.stage, total: summarize([]) });
+    const row = rows.get(item.stage);
+    const ruleMatches = matches.filter((match) => match.stage === item.stage && match.rule === item.rule);
+    row.rules[item.rule] = summarize(ruleMatches);
+    row.total = summarize(matches.filter((match) => match.stage === item.stage));
+  }
+  return {
+    stages: [...rows.values()],
+    summary: summarize(matches),
   };
 }
 

@@ -114,6 +114,11 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
+  if (url.pathname === "/api/analysis/stage-details") {
+    await handleStageDetailsRequest(req, res, url, database);
+    return;
+  }
+
   if (url.pathname === "/api/analysis/options") {
     await handleAnalysisOptionsRequest(req, res, database);
     return;
@@ -865,6 +870,59 @@ async function handleStagePerformanceRequest(req, res, url, database) {
   );
 }
 
+async function handleStageDetailsRequest(req, res, url, database) {
+  if (!requireDatabase(res, database)) return;
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const { whereSql, values } = analysisFilters(url, new Set(["rule", "stage"]));
+  const countedWhereSql = whereSql ? `${whereSql} AND result IN ('win', 'lose')` : "WHERE result IN ('win', 'lose')";
+  const [overallResult, stageRuleResult] = await Promise.all([
+    database.query(
+      `
+        SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE result = 'win')::int AS wins
+        FROM matches
+        ${countedWhereSql}
+      `,
+      values,
+    ),
+    database.query(
+      `
+        SELECT stage, rule, COUNT(*)::int AS total, COUNT(*) FILTER (WHERE result = 'win')::int AS wins
+        FROM matches
+        ${countedWhereSql}
+        GROUP BY stage, rule
+        ORDER BY stage ASC, rule ASC
+      `,
+      values,
+    ),
+  ]);
+
+  const stages = new Map();
+  for (const row of stageRuleResult.rows) {
+    if (!stages.has(row.stage)) {
+      stages.set(row.stage, { rules: {}, stage: row.stage, total: emptyMatchSummary() });
+    }
+    const stage = stages.get(row.stage);
+    const summary = matchSummaryFromRow(row);
+    stage.rules[row.rule] = summary;
+    stage.total.wins += summary.wins;
+    stage.total.losses += summary.losses;
+    stage.total.total += summary.total;
+  }
+
+  for (const stage of stages.values()) {
+    stage.total.winRate = stage.total.total ? Math.round((stage.total.wins / stage.total.total) * 100) : null;
+  }
+
+  sendJson(res, 200, {
+    stages: [...stages.values()],
+    summary: matchSummaryFromRow(overallResult.rows[0]),
+  });
+}
+
 async function handleSummaryAnalysisRequest(req, res, url, database) {
   if (!requireDatabase(res, database)) return;
   if (req.method !== "GET") {
@@ -979,7 +1037,7 @@ async function handleMonthlyReportRequest(req, res, url, database) {
   );
 }
 
-function analysisFilters(url) {
+function analysisFilters(url, ignoredParameters = new Set()) {
   const definitions = [
     ["season", "season"],
     ["rule", "rule"],
@@ -989,6 +1047,7 @@ function analysisFilters(url) {
   const where = [];
   const values = [];
   for (const [parameter, column] of definitions) {
+    if (ignoredParameters.has(parameter)) continue;
     const value = url.searchParams.get(parameter);
     if (!value || value === "all") continue;
     values.push(value);
@@ -1017,6 +1076,15 @@ function matchSummaryFromRow(row) {
     losses: total - wins,
     total,
     winRate: total ? Math.round((wins / total) * 100) : null,
+  };
+}
+
+function emptyMatchSummary() {
+  return {
+    wins: 0,
+    losses: 0,
+    total: 0,
+    winRate: null,
   };
 }
 

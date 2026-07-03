@@ -611,6 +611,58 @@ test("stage performance API summarizes stages for a rule period", async () => {
   });
 });
 
+test("stage details API summarizes stages across rules", async () => {
+  const calls = [];
+  const database = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (!sql.includes("GROUP BY stage, rule")) {
+        return { rows: [{ total: 8, wins: 5 }] };
+      }
+      return {
+        rows: [
+          { rule: "area", stage: "デカライン高架下", total: 4, wins: 3 },
+          { rule: "tower", stage: "デカライン高架下", total: 2, wins: 1 },
+          { rule: "clam", stage: "ユノハナ大渓谷", total: 2, wins: 1 },
+        ],
+      };
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(
+    createRequest("GET", "/api/analysis/stage-details?season=2026-summer&rule=area&stage=デカライン高架下&weapon=スプラシューター"),
+    response,
+    database,
+  );
+
+  assert.equal(response.status, 200);
+  assert.match(calls[1].sql, /GROUP BY stage, rule/);
+  assert.doesNotMatch(calls[1].sql, /rule = /);
+  assert.doesNotMatch(calls[1].sql, /stage = /);
+  assert.deepEqual(calls[0].values, ["2026-summer", "スプラシューター"]);
+  assert.deepEqual(JSON.parse(response.body), {
+    stages: [
+      {
+        rules: {
+          area: { losses: 1, total: 4, winRate: 75, wins: 3 },
+          tower: { losses: 1, total: 2, winRate: 50, wins: 1 },
+        },
+        stage: "デカライン高架下",
+        total: { losses: 2, total: 6, winRate: 67, wins: 4 },
+      },
+      {
+        rules: {
+          clam: { losses: 1, total: 2, winRate: 50, wins: 1 },
+        },
+        stage: "ユノハナ大渓谷",
+        total: { losses: 1, total: 2, winRate: 50, wins: 1 },
+      },
+    ],
+    summary: { losses: 3, total: 8, winRate: 63, wins: 5 },
+  });
+});
+
 test("monthly report API summarizes matches and XP in a JST month", async () => {
   const calls = [];
   const database = {
