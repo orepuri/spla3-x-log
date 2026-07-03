@@ -9,7 +9,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { BackfillPage } from "./BackfillPage";
 import { RecordPage } from "./RecordPage";
-import { AnalysisLayout, HistoryPage, SummaryPage, XpPage } from "./AnalysisPages";
+import { AnalysisLayout, HistoryPage, StrategyGuideIndexPage, SummaryPage, XpPage } from "./AnalysisPages";
 import { DataManagementLayout, DataPage } from "./DataPage";
 import { MonthlyReportPage } from "./ReportsPage";
 import { StrategyDetailPage } from "./StrategyPage";
@@ -42,6 +42,7 @@ export function App() {
           <Route path="summary" element={<SummaryPage />} />
           <Route path="history" element={<HistoryPage />} />
           <Route path="xp" element={<XpPage />} />
+          <Route path="strategy" element={<StrategyGuideIndexPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate replace to="/record" />} />

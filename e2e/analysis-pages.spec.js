@@ -27,6 +27,19 @@ test("opens XP as the default analysis tab", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 2, name: "XP推移" })).toBeVisible();
 });
 
+test("lists strategy links from the analysis strategy tab", async ({ page }) => {
+  await mockAnalysisApis(page);
+  await page.goto("/analysis/strategy");
+
+  await expect(page.getByRole("heading", { level: 2, name: "攻略" })).toBeVisible();
+  const row = page.locator(".strategy-index-row").filter({ hasText: "デカライン高架下" });
+  await expect(row.getByRole("link", { name: "ガチエリア" })).toBeVisible();
+  await expect(row.locator(".strategy-rule-missing").filter({ hasText: "ガチアサリ" })).toBeVisible();
+
+  await row.getByRole("link", { name: "ガチエリア" }).click();
+  await expect(page).toHaveURL(/\/strategy\/splat_zones_urchin_underpass_splattershot$/);
+});
+
 test("pages through history and edits one match", async ({ page }) => {
   const api = await mockAnalysisApis(page);
   await page.goto("/analysis/history");

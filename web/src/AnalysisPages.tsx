@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BarChart3,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   History,
@@ -29,7 +30,7 @@ import {
 } from "./api";
 import { rules, seasonName, seasons, stages, weapons } from "./catalog";
 import { StageSelect } from "./StageSelect";
-import { getStrategyGuide } from "./stageGuides";
+import { getStrategyGuide, stageGuides } from "./stageGuides";
 import type {
   AnalysisFilters,
   AnalysisOptions,
@@ -62,6 +63,7 @@ const analysisNavigation = [
   { to: "/analysis/xp", label: "XP", icon: BarChart3 },
   { to: "/analysis/summary", label: "集計", icon: LayoutDashboard },
   { to: "/analysis/history", label: "履歴", icon: History },
+  { to: "/analysis/strategy", label: "攻略", icon: BookOpen },
 ];
 
 type AnalysisContext = {
@@ -169,6 +171,41 @@ export function SummaryPage() {
           </div>
         </>
       ) : null}
+    </section>
+  );
+}
+
+export function StrategyGuideIndexPage() {
+  const guideStages = new Set(stageGuides.map((guide) => guide.stage));
+
+  return (
+    <section className="surface analysis-surface">
+      <div className="section-heading-row">
+        <SectionHeading icon={BookOpen} title="攻略" />
+        <span className="strategy-index-count">{stageGuides.length}件</span>
+      </div>
+      <p className="strategy-index-lead">ステージごとに、登録済みのルール別攻略へ移動できます。</p>
+      <div className="strategy-index-list">
+        {stages.map((stage) => (
+          <div className={`strategy-index-row${guideStages.has(stage) ? "" : " is-empty"}`} key={stage}>
+            <strong>{stage}</strong>
+            <div className="strategy-index-rules">
+              {rules.map((rule) => {
+                const guide = getStrategyGuide(rule.id, stage);
+                return guide ? (
+                  <Link className="strategy-rule-link" key={rule.id} to={`/strategy/${guide.id}`}>
+                    {rule.name}
+                  </Link>
+                ) : (
+                  <span className="strategy-rule-missing" key={rule.id}>
+                    {rule.name}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
