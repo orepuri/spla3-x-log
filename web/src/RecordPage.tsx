@@ -16,6 +16,7 @@ import {
 } from "./api";
 import { defaultSettings, rules, seasonName, seasons, stages, weapons } from "./catalog";
 import { getStrategyGuide, hasStrategyGuide } from "./stageGuides";
+import { StageSelect } from "./StageSelect";
 import type { StageGuide } from "./stageGuides";
 import type { AppSettings, MatchResult, MatchSummary, StagePerformance } from "./types";
 
@@ -220,18 +221,18 @@ export function RecordPage() {
               onCommit={(value) => saveSetting("weapon", value)}
               value={settings.weapon}
             />
-            <SelectField
+            <StageSelect
               disabled={isBusy}
               label="ステージA"
               onChange={(value) => saveSetting("stageA", value)}
-              options={stages.map((stage) => ({ label: stage, value: stage }))}
+              rule={settings.rule}
               value={settings.stageA}
             />
-            <SelectField
+            <StageSelect
               disabled={isBusy}
               label="ステージB"
               onChange={(value) => saveSetting("stageB", value)}
-              options={stages.map((stage) => ({ label: stage, value: stage }))}
+              rule={settings.rule}
               value={settings.stageB}
             />
             <SelectField

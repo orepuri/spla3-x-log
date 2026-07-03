@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BarChart3, Clock3, Save } from "lucide-react";
 import { createMatch, createXpRecord, getSettings } from "./api";
-import { defaultSettings, rules, seasons, stages, weapons } from "./catalog";
+import { defaultSettings, rules, seasons, weapons } from "./catalog";
+import { StageSelect } from "./StageSelect";
 import type { AppSettings, MatchResult, RuleId } from "./types";
 
 export function BackfillPage({ embedded = false }: { embedded?: boolean }) {
@@ -155,11 +156,11 @@ export function BackfillPage({ embedded = false }: { embedded?: boolean }) {
               options={seasons.map((season) => ({ label: season.name, value: season.id }))}
               value={matchForm.season}
             />
-            <SelectField
+            <StageSelect
               disabled={isBusy}
               label="ステージ"
               onChange={(stage) => setMatchForm((current) => ({ ...current, stage }))}
-              options={stages.map((stage) => ({ label: stage, value: stage }))}
+              rule={matchForm.rule}
               value={matchForm.stage}
             />
             <SelectField

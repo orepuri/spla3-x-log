@@ -28,6 +28,7 @@ import {
   updateXpRecord,
 } from "./api";
 import { rules, seasonName, seasons, stages, weapons } from "./catalog";
+import { StageSelect } from "./StageSelect";
 import type {
   AnalysisFilters,
   AnalysisOptions,
@@ -598,10 +599,12 @@ function AnalysisFilters({
             options={[{ label: "すべて", value: "all" }, ...options.weapons.map((item) => ({ label: item, value: item }))]}
             value={filters.weapon}
           />
-          <FilterSelect
+          <StageSelect
+            allowAll
             label="ステージ"
             onChange={(value) => setFilter("stage", value)}
-            options={[{ label: "すべて", value: "all" }, ...options.stages.map((item) => ({ label: item, value: item }))]}
+            options={options.stages.map((item) => ({ label: item, value: item }))}
+            rule={filters.rule as RuleId | "all"}
             value={filters.stage}
           />
           {showTime ? (
@@ -760,7 +763,7 @@ function HistoryEdit({
           <span>武器</span>
           <input onChange={(event) => onChange({ ...match, weapon: event.target.value })} value={match.weapon} />
         </label>
-        <FilterSelect label="ステージ" onChange={(stage) => onChange({ ...match, stage })} options={options.stages.map((item) => ({ label: item, value: item }))} value={match.stage} />
+        <StageSelect label="ステージ" onChange={(stage) => onChange({ ...match, stage })} options={options.stages.map((item) => ({ label: item, value: item }))} rule={match.rule} value={match.stage} />
         <FilterSelect
           label="勝敗"
           onChange={(result) => onChange({ ...match, result: result as MatchResult })}

@@ -3201,6 +3201,10 @@ export function hasStrategyGuide(rule: RuleId, stage: string) {
   return Boolean(getStrategyGuide(rule, stage));
 }
 
+export function hasAnyStrategyGuide(stage: string) {
+  return stageGuides.some((guide) => guide.stage === stage);
+}
+
 function imageUrl(path: string) {
   const image = strategyMapImages[`../../strategy/${path}`];
   if (!image) throw new Error(`Missing strategy map image: ${path}`);

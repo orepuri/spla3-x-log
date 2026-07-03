@@ -12,7 +12,7 @@ test("records past matches and XP while preserving repeated-entry values", async
   await expect(recordedAt).toHaveValue(initialTime);
 
   const matchSection = page.locator("section").filter({ has: page.getByRole("heading", { name: "過去の試合" }) });
-  await matchSection.getByLabel("ステージ").selectOption("デカライン高架下");
+  await chooseStage(matchSection, "deka", "デカライン高架下");
   await matchSection.getByLabel("勝敗").selectOption("lose");
   await matchSection.getByRole("button", { name: "試合を保存" }).click();
 
@@ -33,6 +33,11 @@ test("records past matches and XP while preserving repeated-entry values", async
   await expect(xpSection.getByLabel("XP")).toHaveValue("");
   await expect(page.getByText("過去のXPを保存しました")).toBeVisible();
 });
+
+async function chooseStage(scope, query, stage) {
+  await scope.getByLabel("ステージ").fill(query);
+  await scope.getByRole("option", { name: new RegExp(stage) }).click();
+}
 
 test("prevents duplicate past-match submission while saving", async ({ page }) => {
   let releaseRequest;
