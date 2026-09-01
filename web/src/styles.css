@@ -1625,6 +1625,87 @@ input {
   min-height: 400px;
 }
 
+.latest-xp-overview {
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--soft);
+  padding: 12px;
+}
+
+.latest-xp-header h3,
+.latest-xp-header p {
+  margin: 0;
+}
+
+.latest-xp-header h3 {
+  font-size: 14px;
+}
+
+.latest-xp-header p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.latest-xp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.latest-xp-card {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 10px;
+}
+
+.latest-xp-card > span,
+.latest-xp-card time {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.latest-xp-card > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.latest-xp-card strong {
+  font-size: 24px;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.latest-xp-card time {
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.latest-xp-card.is-empty strong,
+.latest-xp-message {
+  color: var(--muted);
+}
+
+.latest-xp-message {
+  padding: 16px 4px 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.latest-xp-message.error {
+  color: #a51d57;
+}
+
 .filter-row {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: 14px;
@@ -2719,6 +2800,10 @@ input {
   .stage-filter-row,
   .xp-period-controls {
     grid-template-columns: 1fr;
+  }
+
+  .latest-xp-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stage-detail-toolbar {

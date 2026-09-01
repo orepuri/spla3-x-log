@@ -81,11 +81,15 @@ test("saves the XP period and keeps it across analysis tabs", async ({ page }) =
   const api = await mockAnalysisApis(page);
   await page.goto("/analysis/xp");
 
+  await expect(page.getByRole("heading", { level: 3, name: "各ルールの最新XP" })).toBeVisible();
+  await expect(page.locator(".latest-xp-card")).toHaveCount(4);
+  await expect(page.locator(".latest-xp-card").filter({ hasText: "ガチエリア" }).locator("strong")).toHaveText("2174.0");
+  await expect(page.locator(".latest-xp-card").filter({ hasText: "ガチアサリ" })).toContainText("未記録");
   await expect(page.getByLabel("期間")).toHaveValue("30");
   await expect(page.getByRole("img", { name: "XP推移" })).toBeVisible();
   await expect(page.locator(".xp-chart-legend")).toContainText("ガチエリア");
   await expect(page.locator(".xp-chart-legend")).toContainText("ガチヤグラ");
-  await expect(page.getByLabel("ルール")).toHaveCount(0);
+  await expect(page.locator(".xp-filter-row select[aria-label='ルール']")).toHaveCount(0);
   await expect(page.locator(".react-xp-chart circle")).toHaveCount(6);
   await expect(page.locator(".react-xp-chart .xp-x-tick")).toHaveCount(6);
   await expect(page.locator(".react-xp-chart .xp-y-tick")).toHaveCount(5);
@@ -119,6 +123,12 @@ test("saves the XP period and keeps it across analysis tabs", async ({ page }) =
 });
 
 async function mockAnalysisApis(page) {
+  const relativeXpDate = (daysAgo, hour) => {
+    const date = new Date();
+    date.setDate(date.getDate() - daysAgo);
+    date.setHours(hour, 0, 0, 0);
+    return date.toISOString();
+  };
   const api = {
     lastSummaryRule: "all",
     requestedAllXpRules: false,
@@ -144,7 +154,7 @@ async function mockAnalysisApis(page) {
         season: "2026-summer",
         rule: index % 2 ? "tower" : "area",
         xp: index === 3 ? 2200 : 2100 + index * 18.5,
-        recordedAt: new Date(Date.UTC(2026, 5, 13 + index, 12)).toISOString(),
+        recordedAt: relativeXpDate(6 - index, 12),
       })),
       {
         id: "xp-same-day-earlier",
@@ -153,7 +163,7 @@ async function mockAnalysisApis(page) {
         season: "2026-summer",
         rule: "area",
         xp: 2120,
-        recordedAt: new Date(Date.UTC(2026, 5, 15, 8)).toISOString(),
+        recordedAt: relativeXpDate(4, 8),
       },
     ].sort((left, right) => new Date(right.recordedAt) - new Date(left.recordedAt)),
   };

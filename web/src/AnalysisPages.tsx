@@ -507,6 +507,11 @@ export function XpPage() {
   const queryClient = useQueryClient();
   const [historyPageIndex, setHistoryPageIndex] = useState(0);
   const [editingRecord, setEditingRecord] = useState<XpRecord | null>(null);
+  const latestXpQuery = useQuery({
+    enabled: !preferencesLoading,
+    queryFn: () => getLatestXpByRule(filters.season),
+    queryKey: ["analysis-latest-xp", filters.season],
+  });
   const dateRange = xpDateRange(preferences);
   const xpQuery = useQuery({
     enabled: !preferencesLoading,
@@ -581,6 +586,12 @@ export function XpPage() {
   return (
     <section className="surface analysis-surface">
       <SectionHeading icon={BarChart3} title="XP推移" />
+      <LatestXpOverview
+        error={latestXpQuery.isError}
+        items={latestXpQuery.data}
+        loading={latestXpQuery.isLoading || preferencesLoading}
+        season={filters.season}
+      />
       <AnalysisFilters filters={filters} options={options} setFilter={setFilter} xpOnly />
       <div className="xp-period-controls">
         <label className="preview-field">
@@ -663,6 +674,56 @@ export function XpPage() {
             </>
           ) : null}
         </>
+      )}
+    </section>
+  );
+}
+
+type LatestXpItem = {
+  record: XpRecord | null;
+  rule: RuleId;
+};
+
+function LatestXpOverview({
+  error,
+  items,
+  loading,
+  season,
+}: {
+  error: boolean;
+  items?: LatestXpItem[];
+  loading: boolean;
+  season: string;
+}) {
+  return (
+    <section className="latest-xp-overview" aria-labelledby="latest-xp-overview-title">
+      <div className="latest-xp-header">
+        <div>
+          <h3 id="latest-xp-overview-title">各ルールの最新XP</h3>
+          <p>{season === "all" ? "全シーズン" : seasonName(season)}</p>
+        </div>
+      </div>
+      {loading ? (
+        <div className="latest-xp-message">読み込んでいます</div>
+      ) : error ? (
+        <div className="latest-xp-message error">最新XPを読み込めません</div>
+      ) : (
+        <div className="latest-xp-grid">
+          {(items || []).map(({ record, rule }) => (
+            <div className={`latest-xp-card${record ? "" : " is-empty"}`} key={rule}>
+              <span>{ruleName(rule)}</span>
+              <strong>{record ? record.xp.toFixed(1) : "-"}</strong>
+              {record ? (
+                <time dateTime={record.recordedAt}>
+                  {season === "all" ? `${seasonName(record.season)} · ` : ""}
+                  {formatDateTime(record.recordedAt)}
+                </time>
+              ) : (
+                <time>未記録</time>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );
@@ -1132,6 +1193,19 @@ async function loadXpRecords(season: string, start?: string, end?: string) {
   return items;
 }
 
+async function getLatestXpByRule(season: string): Promise<LatestXpItem[]> {
+  return Promise.all(
+    rules.map(async ({ id }) => {
+      const page = await getXpRecords({
+        limit: 1,
+        rule: id,
+        season,
+      });
+      return { record: page.items[0] || null, rule: id };
+    }),
+  );
+}
+
 function xpRecordsWithPrevious(records: XpRecord[], baselines: XpRecord[]) {
   const previousByRule = new Map<RuleId, XpRecord>();
   baselines.forEach((record) => previousByRule.set(record.rule, record));
@@ -1320,6 +1394,7 @@ function Empty({ compact = false }: { compact?: boolean }) {
 async function invalidateXpData(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["analysis-xp"] }),
+    queryClient.invalidateQueries({ queryKey: ["analysis-latest-xp"] }),
     queryClient.invalidateQueries({ queryKey: ["current-analysis"] }),
     queryClient.invalidateQueries({ queryKey: ["xp-state"] }),
     queryClient.invalidateQueries({ queryKey: ["monthly-report"] }),
