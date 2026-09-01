@@ -1,8 +1,11 @@
 import type { AppSettings, RuleId } from "./types";
 
-export const defaultSeasonId = "2026-summer";
+export const defaultSeasonId = "2026-autumn";
 
-export const seasons = [{ id: defaultSeasonId, name: "2026夏 Sizzle Season" }];
+export const seasons = [
+  { id: defaultSeasonId, name: "2026秋 Drizzle Season" },
+  { id: "2026-summer", name: "2026夏 Sizzle Season" },
+];
 
 export const rules: Array<{ id: RuleId; name: string }> = [
   { id: "area", name: "ガチエリア" },

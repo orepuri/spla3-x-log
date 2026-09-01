@@ -12,6 +12,7 @@ test("keeps summary filters in the URL and renders grouped results", async ({ pa
   await page.locator(".analysis-breakdown-row").filter({ hasText: "デカライン高架下" }).getByRole("link", { name: "攻略" }).click();
   await expect(page).toHaveURL(/\/strategy\/splat_zones_urchin_underpass_splattershot$/);
   await page.goto("/analysis/summary?rule=area");
+  await expect(page.getByLabel("シーズン").locator('option[value="2026-autumn"]')).toHaveCount(1);
   await expect(page.getByLabel("シーズン").locator('option[value="2025-winter"]')).toHaveCount(1);
   await expect(page.getByLabel("武器").locator('option[value="custom-weapon"]')).toHaveCount(1);
 

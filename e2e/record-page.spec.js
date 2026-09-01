@@ -5,6 +5,7 @@ test("updates settings and records match, XP, and undo through resource APIs", a
   await page.goto("/record");
 
   await expect(page.getByLabel("武器")).toHaveValue("スプラシューター");
+  await expect(page.getByLabel("シーズン").locator('option[value="2026-autumn"]')).toHaveCount(1);
   await expect(page.getByText("2150.5")).toBeVisible();
   await expect(page.locator(".performance-surface .metric").nth(1).locator("strong")).toHaveText("50%");
   await expect(page.getByRole("button", { name: "ユノハナ大渓谷の攻略情報を開く" })).toHaveCount(0);

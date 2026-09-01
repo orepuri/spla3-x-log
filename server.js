@@ -9,7 +9,7 @@ const reactRoot = path.join(root, "dist");
 const port = Number(process.env.PORT || 5173);
 const host = process.env.HOST || "0.0.0.0";
 const databaseUrl = process.env.DATABASE_URL;
-const defaultSeasonId = "2026-summer";
+const defaultSeasonId = "2026-autumn";
 const appTimeZone = "Asia/Tokyo";
 const recordedHourSql = `EXTRACT(HOUR FROM recorded_at AT TIME ZONE '${appTimeZone}')`;
 
