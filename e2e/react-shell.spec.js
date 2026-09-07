@@ -23,6 +23,9 @@ test("opens React routes directly and navigates between workflows", async ({ pag
   await page.getByRole("link", { name: "レポート" }).click();
   await expect(page).toHaveURL(/\/reports\/monthly$/);
   await expect(page.getByRole("heading", { level: 1, name: "レポート" })).toBeVisible();
+  await page.getByRole("link", { name: "シーズン" }).click();
+  await expect(page).toHaveURL(/\/reports\/season$/);
+  await expect(page.getByRole("heading", { level: 1, name: "レポート" })).toBeVisible();
 });
 
 test("uses the React record page as the root application", async ({ page }) => {

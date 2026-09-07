@@ -25,7 +25,7 @@ export interface XpRecord {
   rule: RuleId;
   xp: number;
   completedMatchId: string | null;
-  recordType: "completed" | "manual";
+  recordType: "completed" | "manual" | "initial";
   recordedAt: string;
 }
 
@@ -168,4 +168,23 @@ export interface MonthlyStageReport extends MatchSummary {
   maxLoseStreak: number;
   maxWinStreak: number;
   stage: string;
+}
+
+export interface SeasonXpFrame {
+  recordedAt: string;
+  xps: Record<RuleId, number | null>;
+}
+
+export interface SeasonReport {
+  highlights: MonthlyReport["highlights"];
+  xpTrend: SeasonXpFrame[];
+  range: {
+    closed: boolean;
+    end: string;
+    start: string;
+  };
+  rules: MonthlyRuleReport[];
+  season: string;
+  stages: MonthlyStageReport[];
+  summary: MonthlyReport["summary"];
 }

@@ -116,6 +116,21 @@ test("prefills estimated XP when a set completes and links it to the completion 
   expect(api.xpRecords[0].completedMatchId).toBe("match-new-1");
 });
 
+test("saves an initial season XP and resets the set counter", async ({ page }) => {
+  const api = await mockRecordApis(page);
+  api.settings.season = "2026-autumn";
+
+  await page.goto("/record");
+  await page.getByLabel("現在XP").fill("2300.0");
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "シーズン初期値として保存" }).click();
+
+  await expect.poll(() => api.xpRecords[0].recordType).toBe("initial");
+  expect(api.xpRecords[0].season).toBe("2026-autumn");
+  expect(api.xpRecords[0].xp).toBe(2300);
+  await expect(page.getByText("シーズン初期XPを保存しました（勝敗数をリセット）")).toBeVisible();
+});
+
 async function mockRecordApis(page, options = {}) {
   const api = {
     matchPostCount: 0,

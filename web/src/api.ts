@@ -9,6 +9,7 @@ import type {
   MatchResult,
   MonthlyReport,
   PageResult,
+  SeasonReport,
   StageDetailsReport,
   StagePerformance,
   StagePerformanceReport,
@@ -143,7 +144,7 @@ export async function createXpRecord(input: {
   rule: string;
   xp: number;
   completedMatchId?: string | null;
-  recordType?: "completed" | "manual";
+  recordType?: "completed" | "manual" | "initial";
   recordedAt?: string;
 }): Promise<XpRecord> {
   return request<XpRecord>("/api/xp-records", {
@@ -204,6 +205,11 @@ export async function getAnalysisOptions(): Promise<AnalysisOptions> {
 export async function getMonthlyReport(month: string): Promise<MonthlyReport> {
   const params = new URLSearchParams({ month });
   return request<MonthlyReport>(`/api/reports/monthly?${params}`);
+}
+
+export async function getSeasonReport(season: string): Promise<SeasonReport> {
+  const params = new URLSearchParams({ season });
+  return request<SeasonReport>(`/api/reports/season?${params}`);
 }
 
 function filterParams(filters: AnalysisFilters) {

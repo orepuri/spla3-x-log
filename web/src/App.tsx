@@ -11,7 +11,7 @@ import { BackfillPage } from "./BackfillPage";
 import { RecordPage } from "./RecordPage";
 import { AnalysisLayout, HistoryPage, StrategyGuideIndexPage, SummaryPage, XpPage } from "./AnalysisPages";
 import { DataManagementLayout, DataPage } from "./DataPage";
-import { MonthlyReportPage } from "./ReportsPage";
+import { MonthlyReportPage, SeasonReportPage } from "./ReportsPage";
 import { StrategyDetailPage } from "./StrategyPage";
 
 const primaryNavigation = [
@@ -36,6 +36,7 @@ export function App() {
         <Route path="/reports">
           <Route index element={<Navigate replace to="monthly" />} />
           <Route path="monthly" element={<MonthlyReportPage />} />
+          <Route path="season" element={<SeasonReportPage />} />
         </Route>
         <Route path="/analysis" element={<AnalysisLayout />}>
           <Route index element={<Navigate replace to="xp" />} />

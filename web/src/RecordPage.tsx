@@ -119,7 +119,7 @@ export function RecordPage() {
     },
   });
   const xpMutation = useMutation({
-    mutationFn: (input: { value: number; recordType: "completed" | "manual" }) =>
+    mutationFn: (input: { value: number; recordType: "completed" | "manual" | "initial" }) =>
       createXpRecord({
         completedMatchId: input.recordType === "completed" ? pendingCompletion?.completedMatchId : null,
         recordedAt: input.recordType === "completed" ? pendingCompletion?.completedAt : undefined,
@@ -129,10 +129,10 @@ export function RecordPage() {
         xp: input.value,
       }),
     onError: () => setError("XPを保存できません"),
-    onSuccess: async () => {
+    onSuccess: async (record) => {
       setError("");
       setXp("");
-      setFeedback("XPを保存しました");
+      setFeedback(record.recordType === "initial" ? "シーズン初期XPを保存しました（勝敗数をリセット）" : "XPを保存しました");
       await refreshRecordData();
     },
   });
@@ -183,6 +183,22 @@ export function RecordPage() {
       return;
     }
     xpMutation.mutate({ recordType: "manual", value });
+  }
+
+  function saveInitialXp() {
+    const value = Number(xp);
+    if (!Number.isFinite(value) || value < 0) {
+      setError("XPを入力してください");
+      return;
+    }
+    if (
+      !window.confirm(
+        `${seasonName(settings.season)}の初期XPとして${value.toFixed(1)}を保存しますか？\nこのルールの勝敗数と未入力のXPセットはリセットされます。`,
+      )
+    ) {
+      return;
+    }
+    xpMutation.mutate({ recordType: "initial", value });
   }
 
   if (settingsQuery.isLoading) {
@@ -319,10 +335,16 @@ export function RecordPage() {
                 value={xp}
               />
             </label>
-            <button className="primary-button" disabled={isBusy || !xp} type="submit">
-              <Save aria-hidden="true" size={16} />
-              {pendingCompletion ? "確定XPを保存" : "XP保存"}
-            </button>
+            <div className="xp-entry-actions">
+              <button className="primary-button" disabled={isBusy || !xp} type="submit">
+                <Save aria-hidden="true" size={16} />
+                {pendingCompletion ? "確定XPを保存" : "XP保存"}
+              </button>
+              <button className="icon-text-button" disabled={isBusy || !xp} onClick={saveInitialXp} type="button">
+                <RotateCcw aria-hidden="true" size={16} />
+                シーズン初期値として保存
+              </button>
+            </div>
           </form>
         </section>
 

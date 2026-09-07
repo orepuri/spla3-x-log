@@ -11,6 +11,11 @@ const host = process.env.HOST || "0.0.0.0";
 const databaseUrl = process.env.DATABASE_URL;
 const defaultSeasonId = "2026-autumn";
 const appTimeZone = "Asia/Tokyo";
+const seasonDefinitions = {
+  "2026-summer": { endDate: "2026-08-31", startDate: "2026-06-01" },
+  "2026-autumn": { endDate: null, startDate: "2026-09-01" },
+};
+const reportRuleIds = ["area", "tower", "rainmaker", "clam"];
 const recordedHourSql = `EXTRACT(HOUR FROM recorded_at AT TIME ZONE '${appTimeZone}')`;
 
 process.env.TZ = appTimeZone;
@@ -134,6 +139,11 @@ async function handleRequest(req, res, database = pool) {
     return;
   }
 
+  if (url.pathname === "/api/reports/season") {
+    await handleSeasonReportRequest(req, res, url, database);
+    return;
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") {
     sendJson(res, 404, { error: "Not found" });
     return;
@@ -179,7 +189,7 @@ async function migrate() {
       rule text NOT NULL,
       xp numeric(6, 1) NOT NULL CHECK (xp >= 0),
       completed_match_id text,
-      record_type text NOT NULL DEFAULT 'manual' CHECK (record_type IN ('completed', 'manual')),
+      record_type text NOT NULL DEFAULT 'manual' CONSTRAINT xp_records_record_type_check CHECK (record_type IN ('completed', 'manual', 'initial')),
       recorded_at timestamptz NOT NULL
     );
 
@@ -189,6 +199,8 @@ async function migrate() {
     ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS season text;
     ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS completed_match_id text;
     ALTER TABLE xp_records ADD COLUMN IF NOT EXISTS record_type text;
+    ALTER TABLE xp_records DROP CONSTRAINT IF EXISTS xp_records_record_type_check;
+    ALTER TABLE xp_records ADD CONSTRAINT xp_records_record_type_check CHECK (record_type IN ('completed', 'manual', 'initial'));
     UPDATE matches SET season = '${defaultSeasonId}' WHERE season IS NULL;
     UPDATE xp_records SET season = '${defaultSeasonId}' WHERE season IS NULL;
     UPDATE xp_records SET record_type = 'completed' WHERE record_type IS NULL;
@@ -1037,6 +1049,55 @@ async function handleMonthlyReportRequest(req, res, url, database) {
   );
 }
 
+async function handleSeasonReportRequest(req, res, url, database) {
+  if (!requireDatabase(res, database)) return;
+  if (req.method !== "GET") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const season = url.searchParams.get("season") || defaultSeasonId;
+  const range = seasonRange(season);
+  if (!range) {
+    sendJson(res, 400, { error: "Invalid season" });
+    return;
+  }
+
+  const [matchesResult, xpResult] = await Promise.all([
+    database.query(
+      `
+        SELECT id, season, rule, stage, weapon, result, recorded_at
+        FROM matches
+        WHERE season = $1 AND recorded_at >= $2 AND recorded_at < $3
+        ORDER BY recorded_at ASC, id ASC
+      `,
+      [season, range.start, range.end],
+    ),
+    database.query(
+      `
+        SELECT id, season, rule, xp, completed_match_id, record_type, recorded_at
+        FROM xp_records
+        WHERE recorded_at < $1
+        ORDER BY recorded_at ASC, id ASC
+      `,
+      [range.end],
+    ),
+  ]);
+
+  sendJson(
+    res,
+    200,
+    buildSeasonReport(
+      season,
+      range.start,
+      range.end,
+      range.closed,
+      matchesResult.rows.map(matchFromRow),
+      xpResult.rows.map(xpRecordFromRow),
+    ),
+  );
+}
+
 function analysisFilters(url, ignoredParameters = new Set()) {
   const definitions = [
     ["season", "season"],
@@ -1175,6 +1236,128 @@ function buildMonthlyReport(month, start, end, matches, xpRecords) {
   };
 }
 
+function buildSeasonReport(season, start, end, closed, matches, xpRecords) {
+  const periodMatches = matches.filter((match) => isInRange(match.recordedAt, start, end)).sort(compareRecordedAt);
+  const countedPeriodMatches = periodMatches.filter(isCountedMatch);
+  const periodRecords = xpRecords
+    .filter((record) => record.season === season && isInRange(record.recordedAt, start, end))
+    .sort(compareRecordedAt);
+  const recordsBeforeStart = xpRecords
+    .filter((record) => new Date(record.recordedAt).getTime() < new Date(start).getTime())
+    .sort(compareRecordedAt);
+  const summary = summaryForMatches(countedPeriodMatches);
+  const dayCounts = countBy(countedPeriodMatches, (match) => dateKeyInTokyo(match.recordedAt));
+  const mostPlayedDay = [...dayCounts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([date, total]) => ({ date, total }))
+    .at(0) || null;
+  const overallStreak = streakStats(countedPeriodMatches);
+  const ruleIds = [...new Set([...reportRuleIds, ...countedPeriodMatches.map((match) => match.rule), ...periodRecords.map((record) => record.rule)])];
+  const rules = ruleIds
+    .map((rule) => {
+      const ruleMatches = countedPeriodMatches.filter((match) => match.rule === rule);
+      const before = recordsBeforeStart.filter((record) => record.rule === rule).at(-1) || null;
+      const inSeason = periodRecords.filter((record) => record.rule === rule);
+      const points = [before, ...inSeason].filter(Boolean);
+      const final = points.at(-1) || null;
+      const highest = points.length ? points.reduce((best, record) => (record.xp > best.xp ? record : best), points[0]) : null;
+      const lowest = points.length ? points.reduce((worst, record) => (record.xp < worst.xp ? record : worst), points[0]) : null;
+      const startXp = before?.xp ?? null;
+      const finalXp = final?.xp ?? null;
+      const streak = streakStats(ruleMatches);
+      return {
+        ...summaryForMatches(ruleMatches),
+        finalXp,
+        highestXp: highest?.xp ?? null,
+        lowestXp: lowest?.xp ?? null,
+        maxLoseStreak: streak.maxLoseStreak,
+        maxWinStreak: streak.maxWinStreak,
+        rule,
+        startXp,
+        xpDelta: startXp === null || finalXp === null ? null : roundXp(finalXp - startXp),
+      };
+    })
+    .sort((left, right) => right.total - left.total || String(left.rule).localeCompare(String(right.rule)));
+  const stages = [...groupBy(countedPeriodMatches, (match) => match.stage).entries()]
+    .map(([stage, stageMatches]) => {
+      const mainRules = [...countBy(stageMatches, (match) => match.rule).entries()]
+        .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+        .slice(0, 2)
+        .map(([rule]) => rule);
+      const streak = streakStats(stageMatches);
+      return {
+        ...summaryForMatches(stageMatches),
+        mainRules,
+        maxLoseStreak: streak.maxLoseStreak,
+        maxWinStreak: streak.maxWinStreak,
+        stage,
+      };
+    })
+    .sort((left, right) => right.total - left.total || (right.winRate || 0) - (left.winRate || 0));
+  const bestStage = stages.filter((stage) => stage.total >= 3).sort((left, right) => (right.winRate || 0) - (left.winRate || 0) || right.total - left.total)[0] || null;
+  const toughStage = stages.filter((stage) => stage.total >= 3).sort((left, right) => (left.winRate || 0) - (right.winRate || 0) || right.total - left.total)[0] || null;
+  const mostImprovedRule = rules
+    .filter((rule) => rule.xpDelta !== null)
+    .sort((left, right) => (right.xpDelta || 0) - (left.xpDelta || 0))[0] || null;
+  const highestXpRule = rules
+    .filter((rule) => rule.highestXp !== null)
+    .sort((left, right) => (right.highestXp || 0) - (left.highestXp || 0))[0] || null;
+
+  return {
+    highlights: {
+      bestStage: bestStage ? { stage: bestStage.stage, total: bestStage.total, winRate: bestStage.winRate } : null,
+      highestXp: highestXpRule ? { rule: highestXpRule.rule, xp: highestXpRule.highestXp } : null,
+      maxLoseStreak: overallStreak.maxLoseStreak,
+      maxWinStreak: overallStreak.maxWinStreak,
+      mostImprovedRule: mostImprovedRule ? { rule: mostImprovedRule.rule, xpDelta: mostImprovedRule.xpDelta } : null,
+      mostPlayedDay,
+      toughStage: toughStage ? { stage: toughStage.stage, total: toughStage.total, winRate: toughStage.winRate } : null,
+    },
+    xpTrend: buildSeasonXpTrend(periodRecords, recordsBeforeStart, start, end, ruleIds),
+    range: { closed, end, start },
+    rules,
+    season,
+    stages,
+    summary: {
+      ...summary,
+      activeDays: dayCounts.size,
+      averageMatchesPerActiveDay: dayCounts.size ? Math.round((summary.total / dayCounts.size) * 10) / 10 : 0,
+      maxLoseStreak: overallStreak.maxLoseStreak,
+      maxWinStreak: overallStreak.maxWinStreak,
+      mostPlayedDay,
+    },
+  };
+}
+
+function buildSeasonXpTrend(periodRecords, recordsBeforeStart, start, end, ruleIds) {
+  const current = Object.fromEntries(ruleIds.map((rule) => [rule, null]));
+  for (const record of recordsBeforeStart) current[record.rule] = record.xp;
+  const frames = [xpFrame(start, current, ruleIds)];
+  let group = [];
+  let groupTime = null;
+  for (const record of periodRecords) {
+    const recordedAt = new Date(record.recordedAt).getTime();
+    if (group.length && recordedAt !== groupTime) {
+      for (const groupedRecord of group) current[groupedRecord.rule] = groupedRecord.xp;
+      frames.push(xpFrame(group[0].recordedAt, current, ruleIds));
+      group = [];
+    }
+    groupTime = recordedAt;
+    group.push(record);
+  }
+  if (group.length) {
+    for (const record of group) current[record.rule] = record.xp;
+    frames.push(xpFrame(group[0].recordedAt, current, ruleIds));
+  }
+  frames.push(xpFrame(end, current, ruleIds));
+  return frames;
+}
+
+function xpFrame(recordedAt, current, ruleIds) {
+  const xps = Object.fromEntries(ruleIds.map((rule) => [rule, current[rule] ?? null]));
+  return { recordedAt, xps };
+}
+
 function summaryForMatches(matches) {
   const counted = matches.filter(isCountedMatch);
   return {
@@ -1243,6 +1426,26 @@ function monthRange(month) {
   const start = new Date(Date.UTC(year, monthNumber - 1, 1, -9, 0, 0, 0));
   const end = new Date(Date.UTC(year, monthNumber, 1, -9, 0, 0, 0));
   return { end: end.toISOString(), month, start: start.toISOString() };
+}
+
+function seasonRange(season) {
+  const definition = seasonDefinitions[season];
+  if (!definition) return null;
+  const start = calendarDateToJstStart(definition.startDate);
+  const end = definition.endDate ? calendarDateToJstStart(addCalendarDay(definition.endDate)) : new Date().toISOString();
+  return { closed: Boolean(definition.endDate), end, season, start };
+}
+
+function calendarDateToJstStart(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, -9, 0, 0, 0)).toISOString();
+}
+
+function addCalendarDay(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + 1);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
 }
 
 function currentMonthKey() {
@@ -1343,13 +1546,13 @@ function computeXpState(matches, xpRecords, selectedSeason, selectedRule) {
 
   const selectedMatches = matchesBySeason.get(selectedSeason) || [];
   const selectedRecords = ruleRecords.filter((record) => record.season === selectedSeason);
-  const latestCompleted = [...selectedRecords]
-    .filter((record) => record.recordType === "completed")
+  const latestBaseline = [...selectedRecords]
+    .filter((record) => record.recordType === "completed" || record.recordType === "initial")
     .map((record) => ({ boundaryIndex: completedBoundaryIndex(record, selectedMatches), record }))
     .filter((item) => !item.record.completedMatchId || item.boundaryIndex >= 0)
-    .sort((left, right) => left.boundaryIndex - right.boundaryIndex)
+    .sort((left, right) => left.boundaryIndex - right.boundaryIndex || compareRecordedAt(left.record, right.record))
     .at(-1);
-  const unmatched = selectedMatches.slice((latestCompleted?.boundaryIndex ?? -1) + 1);
+  const unmatched = selectedMatches.slice((latestBaseline?.boundaryIndex ?? -1) + 1);
   const pending = [];
   let currentMatches = [];
 
@@ -1361,7 +1564,7 @@ function computeXpState(matches, xpRecords, selectedSeason, selectedRule) {
     pending.push({
       completedAt: match.recordedAt,
       completedMatchId: match.id,
-      estimatedXp: !latestCompleted ? null : roundXp(latestCompleted.record.xp + delta),
+      estimatedXp: !latestBaseline ? null : roundXp(latestBaseline.record.xp + delta),
       losses: score.losses,
       wins: score.wins,
     });
@@ -1445,7 +1648,7 @@ function normalizeXpRecord(record) {
     rule: String(record.rule),
     xp,
     completedMatchId: record.completedMatchId ? String(record.completedMatchId) : null,
-    recordType: record.recordType === "manual" ? "manual" : "completed",
+    recordType: record.recordType === "initial" ? "initial" : record.recordType === "manual" ? "manual" : "completed",
     recordedAt: validDate(record.recordedAt),
   };
 }

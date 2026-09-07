@@ -13,7 +13,7 @@ for (const viewport of viewports) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await mockResponsiveApis(page);
 
-    for (const route of ["/record", "/data/backfill", "/analysis/summary?rule=area", "/reports/monthly", "/data/archive"]) {
+    for (const route of ["/record", "/data/backfill", "/analysis/summary?rule=area", "/reports/monthly", "/reports/season", "/data/archive"]) {
       await page.goto(route);
       await expect(page.locator("h1").first()).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -118,6 +118,9 @@ async function mockResponsiveApis(page) {
     if (url.pathname === "/api/reports/monthly") {
       return json(route, monthlyReport(summary));
     }
+    if (url.pathname === "/api/reports/season") {
+      return json(route, seasonReport(summary));
+    }
     if (url.pathname === "/api/matches") return json(route, { items: matches, nextCursor: null });
     if (url.pathname === "/api/xp-records") return json(route, { items: [], nextCursor: null });
     return json(route, {});
@@ -168,6 +171,38 @@ function monthlyReport(summary) {
       mostPlayedDay: { date: "2026-06-18", total: 3 },
     },
   };
+}
+
+function seasonReport(summary) {
+  return {
+    highlights: {
+      bestStage: { stage: "デカライン高架下", total: 3, winRate: 67 },
+      highestXp: { rule: "area", xp: 2187.4 },
+      maxLoseStreak: 1,
+      maxWinStreak: 1,
+      mostImprovedRule: { rule: "area", xpDelta: 25.5 },
+      mostPlayedDay: { date: "2026-06-18", total: 3 },
+      toughStage: { stage: "ユノハナ大渓谷", total: 2, winRate: 50 },
+    },
+    xpTrend: [
+      { recordedAt: "2026-05-31T15:00:00.000Z", xps: { area: 2161.9, tower: null, rainmaker: null, clam: null } },
+      { recordedAt: "2026-06-18T04:00:00.000Z", xps: { area: 2187.4, tower: 2090.1, rainmaker: 2055, clam: 1980 } },
+    ],
+    range: { closed: true, start: "2026-05-31T15:00:00.000Z", end: "2026-08-31T15:00:00.000Z" },
+    rules: [
+      { ...summary, finalXp: 2187.4, highestXp: 2187.4, lowestXp: 2161.9, maxLoseStreak: 1, maxWinStreak: 1, rule: "area", startXp: 2161.9, xpDelta: 25.5 },
+      { ...emptySummary(), finalXp: 2090.1, highestXp: 2090.1, lowestXp: 2090.1, maxLoseStreak: 0, maxWinStreak: 0, rule: "tower", startXp: 2090.1, xpDelta: 0 },
+      { ...emptySummary(), finalXp: null, highestXp: null, lowestXp: null, maxLoseStreak: 0, maxWinStreak: 0, rule: "rainmaker", startXp: null, xpDelta: null },
+      { ...emptySummary(), finalXp: null, highestXp: null, lowestXp: null, maxLoseStreak: 0, maxWinStreak: 0, rule: "clam", startXp: null, xpDelta: null },
+    ],
+    season: "2026-summer",
+    stages: [{ ...summary, mainRules: ["area"], maxLoseStreak: 1, maxWinStreak: 1, stage: "デカライン高架下" }],
+    summary: { ...summary, activeDays: 1, averageMatchesPerActiveDay: 3, maxLoseStreak: 1, maxWinStreak: 1, mostPlayedDay: { date: "2026-06-18", total: 3 } },
+  };
+}
+
+function emptySummary() {
+  return { losses: 0, total: 0, winRate: null, wins: 0 };
 }
 
 function match(id, stage, result, recordedAt) {

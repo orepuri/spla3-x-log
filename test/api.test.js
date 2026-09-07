@@ -518,6 +518,30 @@ test("manual XP records do not reset the current set", () => {
   assert.equal(state.latestXp.id, "manual");
 });
 
+test("initial XP records reset the current set and seed estimated XP", () => {
+  const matches = [
+    ...scoredMatches("before", "2026-autumn", ["win", "lose"], "2026-09-08T00:00:00.000Z"),
+    ...scoredMatches("after", "2026-autumn", ["win", "lose", "win", "win"], "2026-09-08T02:00:00.000Z"),
+    {
+      ...matchRow("current", "2026-09-08T03:00:00.000Z"),
+      result: "win",
+      season: "2026-autumn",
+    },
+  ].map(normalizeTestMatch);
+  const records = [
+    {
+      ...xpRecord("initial", "2026-autumn", 2400, "2026-09-08T01:00:00.000Z"),
+      recordType: "initial",
+    },
+  ];
+
+  const state = computeXpState(matches, records, "2026-autumn", "area");
+
+  assert.deepEqual(state.current, { wins: 1, losses: 0 });
+  assert.equal(state.pending.length, 1);
+  assert.equal(state.pending[0].estimatedXp, 2450);
+});
+
 test("analysis options API returns distinct values from stored history", async () => {
   const results = [
     { rows: [{ value: "2025-winter" }, { value: "2026-summer" }] },
@@ -712,6 +736,50 @@ test("monthly report API summarizes matches and XP in a JST month", async () => 
   assert.equal(area.xpDelta, 100);
   assert.equal(report.highlights.bestStage.stage, "バイガイ亭");
   assert.equal(report.highlights.mostImprovedRule.rule, "area");
+});
+
+test("season report API summarizes a closed season and builds XP trend frames", async () => {
+  const calls = [];
+  const database = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      if (sql.includes("FROM matches")) {
+        return {
+          rows: [
+            reportMatch("season-m-1", "area", "バイガイ亭", "win", "2026-06-01T01:00:00.000Z"),
+            reportMatch("season-m-2", "tower", "デカライン高架下", "lose", "2026-06-02T02:00:00.000Z"),
+          ],
+        };
+      }
+      if (sql.includes("FROM xp_records")) {
+        return {
+          rows: [
+            reportXp("season-xp-0", "area", 1600, "2026-05-30T12:00:00.000Z"),
+            reportXp("season-xp-1", "area", 1650, "2026-06-01T04:00:00.000Z"),
+            reportXp("season-xp-2", "tower", 1800, "2026-06-02T05:00:00.000Z"),
+          ],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(createRequest("GET", "/api/reports/season?season=2026-summer"), response, database);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls[0].values, ["2026-summer", "2026-05-31T15:00:00.000Z", "2026-08-31T15:00:00.000Z"]);
+  assert.deepEqual(calls[1].values, ["2026-08-31T15:00:00.000Z"]);
+  const report = JSON.parse(response.body);
+  assert.equal(report.season, "2026-summer");
+  assert.equal(report.range.closed, true);
+  assert.equal(report.summary.total, 2);
+  assert.equal(report.rules.length, 4);
+  assert.equal(report.rules.find((rule) => rule.rule === "area").startXp, 1600);
+  assert.equal(report.rules.find((rule) => rule.rule === "area").xpDelta, 50);
+  assert.ok(report.xpTrend.length >= 3);
+  assert.equal(report.xpTrend[0].xps.area, 1600);
+  assert.equal(report.xpTrend.at(-1).xps.tower, 1800);
 });
 
 test("monthly report API rejects months that are not closed yet", async () => {

@@ -2,9 +2,16 @@ import type { AppSettings, RuleId } from "./types";
 
 export const defaultSeasonId = "2026-autumn";
 
-export const seasons = [
-  { id: defaultSeasonId, name: "2026秋 Drizzle Season" },
-  { id: "2026-summer", name: "2026夏 Sizzle Season" },
+export interface SeasonDefinition {
+  endDate: string | null;
+  id: string;
+  name: string;
+  startDate: string;
+}
+
+export const seasons: SeasonDefinition[] = [
+  { endDate: null, id: defaultSeasonId, name: "2026秋 Drizzle Season", startDate: "2026-09-01" },
+  { endDate: "2026-08-31", id: "2026-summer", name: "2026夏 Sizzle Season", startDate: "2026-06-01" },
 ];
 
 export const rules: Array<{ id: RuleId; name: string }> = [
