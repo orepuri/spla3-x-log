@@ -635,6 +635,26 @@ test("stage performance API summarizes stages for a rule period", async () => {
   });
 });
 
+test("stage performance API supports all seasons", async () => {
+  const calls = [];
+  const database = {
+    async query(sql, values) {
+      calls.push({ sql, values });
+      return sql.includes("GROUP BY stage")
+        ? { rows: [{ stage: "デカライン高架下", total: 5, wins: 3 }] }
+        : { rows: [{ total: 5, wins: 3 }] };
+    },
+  };
+  const response = createResponse();
+
+  await handleRequest(createRequest("GET", "/api/analysis/stages?season=all&rule=area"), response, database);
+
+  assert.equal(response.status, 200);
+  assert.doesNotMatch(calls[0].sql, /season =/);
+  assert.deepEqual(calls[0].values, ["area"]);
+  assert.deepEqual(JSON.parse(response.body).summary, { losses: 2, total: 5, winRate: 60, wins: 3 });
+});
+
 test("stage details API summarizes stages across rules", async () => {
   const calls = [];
   const database = {

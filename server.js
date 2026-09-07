@@ -836,8 +836,14 @@ async function handleStagePerformanceRequest(req, res, url, database) {
     return;
   }
 
-  const values = [season, rule];
-  const where = ["season = $1", "rule = $2"];
+  const values = [];
+  const where = [];
+  if (season !== "all") {
+    values.push(season);
+    where.push(`season = $${values.length}`);
+  }
+  values.push(rule);
+  where.push(`rule = $${values.length}`);
   if (start) {
     const startDate = new Date(start);
     if (Number.isNaN(startDate.getTime())) {

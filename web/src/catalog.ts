@@ -140,3 +140,8 @@ export const defaultSettings: AppSettings = {
 export function seasonName(id: string) {
   return seasons.find((season) => season.id === id)?.name || id;
 }
+
+export function previousSeasonId(id: string) {
+  const index = seasons.findIndex((season) => season.id === id);
+  return index < 0 ? null : seasons[index + 1]?.id || null;
+}

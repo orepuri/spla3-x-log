@@ -14,14 +14,16 @@ import {
   getXpState,
   patchSettings,
 } from "./api";
-import { defaultSettings, rules, seasonName, seasons, stages, weapons } from "./catalog";
+import { defaultSettings, previousSeasonId, rules, seasonName, seasons, stages, weapons } from "./catalog";
 import { getStrategyGuide, hasStrategyGuide } from "./stageGuides";
 import { StageSelect } from "./StageSelect";
 import type { StageGuide } from "./stageGuides";
 import type { AppSettings, MatchResult, MatchSummary, StagePerformance } from "./types";
 
 const stagePerformancePeriods = [
+  { label: "すべて", value: "all" },
   { label: "今シーズン", value: "season" },
+  { label: "前シーズン", value: "previous-season" },
   { label: "30日", value: "30" },
   { label: "14日", value: "14" },
   { label: "7日", value: "7" },
@@ -39,10 +41,15 @@ export function RecordPage() {
   const [guideStage, setGuideStage] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("");
   const [error, setError] = useState("");
+  const previousSeason = previousSeasonId(settings.season);
 
   useEffect(() => {
     if (settingsQuery.data) setSettings({ ...defaultSettings, ...settingsQuery.data });
   }, [settingsQuery.data]);
+
+  useEffect(() => {
+    if (stagePeriod === "previous-season" && !previousSeason) setStagePeriod("season");
+  }, [previousSeason, stagePeriod]);
 
   const analysisQuery = useQuery({
     enabled: Boolean(settings.weapon && settings.stageA && settings.stageB),
@@ -64,14 +71,14 @@ export function RecordPage() {
     queryKey: ["xp-state", settings.season, settings.rule],
   });
   const stagePerformanceQuery = useQuery({
-    enabled: Boolean(settings.season && settings.rule),
+    enabled: Boolean(settings.season && settings.rule && (stagePeriod !== "previous-season" || previousSeason)),
     queryFn: () =>
       getStagePerformance({
         rule: settings.rule,
-        season: settings.season,
+        season: stagePerformanceSeason(settings.season, stagePeriod, previousSeason),
         start: stagePerformanceStart(stagePeriod),
       }),
-    queryKey: ["stage-performance", settings.season, settings.rule, stagePeriod],
+    queryKey: ["stage-performance", settings.season, settings.rule, stagePeriod, previousSeason],
   });
   const pendingCompletion = xpStateQuery.data?.pending[0] || null;
 
@@ -355,6 +362,7 @@ export function RecordPage() {
               {stagePerformancePeriods.map((period) => (
                 <button
                   className={stagePeriod === period.value ? "active" : ""}
+                  disabled={period.value === "previous-season" && !previousSeason}
                   key={period.value}
                   onClick={() => setStagePeriod(period.value)}
                   type="button"
@@ -762,10 +770,16 @@ function stagePerformanceRows(rows: StagePerformance[]) {
 }
 
 function stagePerformanceStart(period: StagePerformancePeriod) {
-  if (period === "season") return undefined;
+  if (period === "all" || period === "season" || period === "previous-season") return undefined;
   const start = new Date();
   start.setDate(start.getDate() - Number(period));
   return start.toISOString();
+}
+
+function stagePerformanceSeason(season: string, period: StagePerformancePeriod, previousSeason: string | null) {
+  if (period === "all") return "all";
+  if (period === "previous-season") return previousSeason || season;
+  return season;
 }
 
 function formatDateTime(iso: string) {

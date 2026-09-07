@@ -131,10 +131,27 @@ test("saves an initial season XP and resets the set counter", async ({ page }) =
   await expect(page.getByText("シーズン初期XPを保存しました（勝敗数をリセット）")).toBeVisible();
 });
 
+test("switches stage performance between all seasons and the previous season", async ({ page }) => {
+  const api = await mockRecordApis(page);
+  api.settings.season = "2026-autumn";
+  api.matches = api.matches.map((item) => ({ ...item, season: "2026-autumn" }));
+
+  await page.goto("/record");
+  await expect(page.getByRole("button", { name: "すべて" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "前シーズン" })).toBeEnabled();
+
+  await page.getByRole("button", { name: "すべて" }).click();
+  await expect.poll(() => api.stagePerformanceSeasonRequested).toBe("all");
+
+  await page.getByRole("button", { name: "前シーズン" }).click();
+  await expect.poll(() => api.stagePerformanceSeasonRequested).toBe("2026-summer");
+});
+
 async function mockRecordApis(page, options = {}) {
   const api = {
     matchPostCount: 0,
     recentMatchStages: [],
+    stagePerformanceSeasonRequested: "",
     stagePerformanceStartRequested: false,
     matches: [
       match("match-2", "ユノハナ大渓谷", "lose", "2026-06-17T02:00:00.000Z"),
@@ -176,7 +193,8 @@ async function mockRecordApis(page, options = {}) {
 
     if (url.pathname === "/api/analysis/stages") {
       api.stagePerformanceStartRequested = Boolean(url.searchParams.get("start"));
-      return json(route, stagePerformanceReport(api));
+      api.stagePerformanceSeasonRequested = url.searchParams.get("season");
+      return json(route, stagePerformanceReport(api, api.stagePerformanceSeasonRequested));
     }
 
     if (url.pathname === "/api/xp-state") {
@@ -244,8 +262,10 @@ function currentAnalysis(api, stageNames) {
   };
 }
 
-function stagePerformanceReport(api) {
-  const relevant = api.matches.filter((item) => item.season === api.settings.season && item.rule === api.settings.rule);
+function stagePerformanceReport(api, season = api.settings.season) {
+  const relevant = api.matches.filter(
+    (item) => (season === "all" || item.season === season) && item.rule === api.settings.rule,
+  );
   const stageNames = Array.from(new Set(relevant.map((item) => item.stage)));
   return {
     stages: stageNames.map((stage) => ({
